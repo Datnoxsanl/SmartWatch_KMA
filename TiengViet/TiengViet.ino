@@ -18,7 +18,6 @@
 const char* ssid = "Fire And Blood";
 const char* password = "12345678";
 const char* viettel_api = "https://viettelai.vn/asr/recognize";
-const char* viettel_token = "6622b17dc7d8528f5b6d31ee27d40b5c";
 const char* weather_api = "http://api.openweathermap.org/data/2.5/weather?lat=21.0285&lon=105.8542&appid=f5044cf6ac87465b7e240e4cbbf7d3f2&units=metric";
 
 // Thêm vào đầu file, sau các #include
