@@ -566,6 +566,8 @@ bool extractTimerTime(const String& transcript, int& hour, int& minute) {
   Serial.printf("Trích xuất thời gian (timer): %d giờ %d phút\n", hour, minute);
   return true;
 }
+
+// Hàm tách số cho báo thức
 bool extractAlarmTime(const String& transcript, int& hour, int& minute) {
   String lowerTranscript = removeVietnameseDiacritics(transcript);
   lowerTranscript.toLowerCase();
@@ -843,6 +845,7 @@ bool extractAppointmentDate(const String& transcript, int& day, int& month) {
   Serial.printf("Trích xuất ngày hẹn: %d/%d\n", day, month);
   return true;
 }
+// Hàm loại bỏ dấu tiếng Việt
 String removeVietnameseDiacritics(String input) {
   String output = input;
   const char* vietnamese[] = {
@@ -868,6 +871,10 @@ String removeVietnameseDiacritics(String input) {
   }
   return output;
 }
+//
+// Hàm chuyển đổi thời gian sang văn bản tiếng Việt
+// Hàm này chuyển đổi giờ, phút, ngày, tháng, năm thành chuỗi văn bản tiếng Việt
+// Ví dụ: 10:30, 21/5/2023 → "Bây giờ là mười giờ ba mươi phút, ngày hai mươi mốt tháng năm năm hai
 void timeToVietnameseText(int hour, int minute, int day, int month, int year, char* output, size_t maxLen) {
   const char* numbers[] = {
     "không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín", "mười",
@@ -1034,6 +1041,7 @@ void fetchForecast() {
   }
   http.end();
 }
+// Hàm gửi dữ liệu PCM đến API Viettel xử lý tiếng viẹte
 void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
   Serial.printf("pcmSize: %d bytes\n", pcmSize);
   if (pcmSize == 0) {
