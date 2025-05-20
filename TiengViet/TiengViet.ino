@@ -14,31 +14,20 @@
 #include <Audio.h>
 #include <esp_heap_caps.h>
 #include <time.h>
-// WiFi & APIs
+const token_api
 const char* ssid = "Fire And Blood";
 const char* password = "12345678";
 const char* viettel_api = "https://viettelai.vn/asr/recognize";
+const char* viettel_token = token_api;
 const char* weather_api = "http://api.openweathermap.org/data/2.5/weather?lat=21.0285&lon=105.8542&appid=f5044cf6ac87465b7e240e4cbbf7d3f2&units=metric";
-
-// Thêm vào đầu file, sau các #include
 const char* forecast_api = "http://api.openweathermap.org/data/2.5/forecast?lat=21.0285&lon=105.8542&appid=f5044cf6ac87465b7e240e4cbbf7d3f2&units=metric";
 
-struct DailyForecast {
-  float temp;
-  String desc;
-  uint32_t timestamp;
-  float pop;  // Xác suất mưa (0.0 đến 1.0)
-};
-
-DailyForecast forecastData[3];
-SemaphoreHandle_t forecastSemaphore;
 #define SUN 0
 #define SUN_CLOUD 1
 #define CLOUD 2
 #define RAIN 3
 #define THUNDER 4
-const char* daysOfWeek[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
-// I2S Microphone (INMP441 with new I2S driver)
+
 #define I2S_WS 41
 #define I2S_SCK 42
 #define I2S_SD 40
@@ -46,38 +35,37 @@ const char* daysOfWeek[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 #define CHUNK 1024
 #define RECORD_SECONDS 3
 
-// I2S Speaker (MAX98357)
 #define I2S_SPK_BCLK 5
 #define I2S_SPK_LRC 4
 #define I2S_SPK_DOUT 15
+#define BUZZER_PIN 14
 
-// WS2812B
-#define LED_PIN 48
-#define NUM_LEDS 1
-Adafruit_NeoPixel leds(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
+#define UART_NUM UART_NUM_1
+#define UART_TX_PIN 17
+#define UART_RX_PIN 18
+#define UART_BAUD_RATE 115200
 
-// OLED
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 13, 12);
-
-// RTC
 RTC_DS1307 rtc;
-
-// MAX7219 pins
 int DataOUT = 21;
 int CLK = 47;
 int Load = 20;
 
-// Buzzer
-#define BUZZER_PIN 14
-// Shared variables with semaphores
-
-// Biến chia sẻ với semaphore
 String currentCommand = "Chua co lenh";
 String weatherInfo = "Weather: N/A";
 SemaphoreHandle_t commandSemaphore;
 SemaphoreHandle_t weatherSemaphore;
+SemaphoreHandle_t forecastSemaphore;
+SemaphoreHandle_t displaySemaphore;
+SemaphoreHandle_t appointmentSemaphore;
 
-// Biến cho báo thức, hẹn giờ, và hẹn giờ 5 phút
+bool isOnline = true;
+bool lastWiFiState = false;
+bool timer2MinEnabled = false;
+uint32_t timer2MinEnd = 0;
+bool displayMode2 = false;
+TickType_t lastWiFiCheck = 0;
+const TickType_t wifiDebounceTime = pdMS_TO_TICKS(5000);
 bool alarmEnabled = false;
 int alarmHour = -1;
 int alarmMinute = 0;
@@ -85,118 +73,215 @@ bool timerEnabled = false;
 uint32_t timerEndTime = 0;
 bool timer5MinEnabled = false;
 uint32_t timer5MinEnd = 0;
-SemaphoreHandle_t displaySemaphore;
 
-// 4 chữ số để hiển thị
-int Digit3 = 0;
-int Digit2 = 0;
-int Digit1 = 0;
-int Digit0 = 0;
+const char* daysOfWeek[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
 struct WeatherIcon {
   uint16_t code;
   const char* font;
 };
+struct DailyForecast {
+  float temp;
+  String desc;
+  uint32_t timestamp;
+  float pop;  //0-1
+};
+DailyForecast forecastData[3];
+struct Appointment {
+  uint32_t dateUnix;
+  char message[64];
+  bool active;
+};
+Appointment appointment = { 0, "", false };
 
-// Task handles
+i2s_chan_handle_t mic_rx_chan = NULL;
+Audio* audio = NULL;
+bool micI2SInitialized = false;
+
 TaskHandle_t wifiTaskHandle = NULL;
 TaskHandle_t displayTaskHandle = NULL;
 TaskHandle_t uartTaskHandle = NULL;
 
-// UART1 configuration
-#define UART_NUM UART_NUM_1
-#define UART_TX_PIN 17
-#define UART_RX_PIN 18
-#define UART_BAUD_RATE 115200
+int Digit3 = 0;
+int Digit2 = 0;
+int Digit1 = 0;
+int Digit0 = 0;
 
-bool isOnline = true;                                     // Trạng thái Online/Offline
-bool lastWiFiState = false;                               // Lưu trạng thái WiFi trước đó
-bool timer2MinEnabled = false;                            // 2-minute timer
-uint32_t timer2MinEnd = 0;                                // 2-minute timer end time
-bool displayMode2 = false;                                // Track OLED display mode
-TickType_t lastWiFiCheck = 0;                             // Thời điểm kiểm tra WiFi cuối
-const TickType_t wifiDebounceTime = pdMS_TO_TICKS(5000);  // Debounce 5 giây
+const byte digits_seg0[10] = { 0b11111100, 0b00110000, 0b11101001, 0b01111001, 0b00110101, 0b01011101, 0b11011101, 0b01110000, 0b11111101, 0b01111101 };
+const byte digits_seg1[10] = { 0b11111101, 0b00110001, 0b11101011, 0b01111011, 0b00110111, 0b01011111, 0b11011111, 0b01110001, 0b11111111, 0b01111111 };
+const byte digits_seg2[10] = { 0b11111101, 0b10000101, 0b11101011, 0b11001111, 0b10010111, 0b01011111, 0b01111111, 0b10001101, 0b11111111, 0b11011111 };
+const byte digits_seg3[10] = { 0b11111100, 0b10000100, 0b11101010, 0b11001110, 0b10010110, 0b01011110, 0b01111110, 0b10001100, 0b11111110, 0b11011110 };
 
-// I2S channel handle for microphone
-i2s_chan_handle_t mic_rx_chan = NULL;
-
-// Global Audio object for speaker
-Audio* audio = NULL;
-
-// Flag to track I2S status
-bool micI2SInitialized = false;
-
-// Bảng mã cho số 0-9 cho seg0 (LED 1)
-const byte digits_seg0[10] = {
-  0b11111100,  // 0
-  0b00110000,  // 1
-  0b11101001,  // 2
-  0b01111001,  // 3
-  0b00110101,  // 4
-  0b01011101,  // 5
-  0b11011101,  // 6
-  0b01110000,  // 7
-  0b11111101,  // 8
-  0b01111101   // 9
-};
-
-// Bảng mã cho số 0-9 cho seg1 (LED 2)
-const byte digits_seg1[10] = {
-  0b11111101,  // 0
-  0b00110001,  // 1
-  0b11101011,  // 2
-  0b01111011,  // 3
-  0b00110111,  // 4
-  0b01011111,  // 5
-  0b11011111,  // 6
-  0b01110001,  // 7
-  0b11111111,  // 8
-  0b01111111   // 9
-};
-
-// Bảng mã cho số 0-9 cho seg2 (LED 3)
-const byte digits_seg2[10] = {
-  0b11111101,  // 0
-  0b10000101,  // 1
-  0b11101011,  // 2
-  0b11001111,  // 3
-  0b10010111,  // 4
-  0b01011111,  // 5
-  0b01111111,  // 6
-  0b10001101,  // 7
-  0b11111111,  // 8
-  0b11011111   // 9
-};
-
-// Bảng mã cho số 0-9 cho seg3 (LED 4)
-const byte digits_seg3[10] = {
-  0b11111100,  // 0
-  0b10000100,  // 1
-  0b11101010,  // 2
-  0b11001110,  // テキスト
-  0b10010110,  // 4
-  0b01011110,  // 5
-  0b01111110,  // 6
-  0b10001100,  // 7
-  0b11111110,  // 8
-  0b11011110   // 9
-};
+WeatherIcon getWeatherIcon(const String& desc) {
+  String descLower = desc;
+  descLower.toLowerCase();
+  //Serial.print("Weather condition (lowercase): ");
+  //Serial.println(descLower);
+  WeatherIcon icon = { 64, "u8g2_font_open_iconic_weather_6x_t" };
+  if (descLower.indexOf("clear") != -1) {
+    icon.code = 69;  // Sun
+    icon.font = "u8g2_font_open_iconic_weather_6x_t";
+  } else if (descLower.indexOf("cloud") != -1) {
+    if (descLower.indexOf("few") != -1 || descLower.indexOf("scattered") != -1) {
+      icon.code = 65;  // Sun Cloud
+      icon.font = "u8g2_font_open_iconic_weather_6x_t";
+    } else {
+      icon.code = 64;  // Cloud
+      icon.font = "u8g2_font_open_iconic_weather_6x_t";
+    }
+  } else if (descLower.indexOf("rain") != -1) {
+    icon.code = 67;  // Rain
+    icon.font = "u8g2_font_open_iconic_weather_6x_t";
+  } else if (descLower.indexOf("thunder") != -1) {
+    icon.code = 67;
+    icon.font = "u8g2_font_open_iconic_embedded_6x_t";
+  } else if (descLower.indexOf("snow") != -1 || descLower.indexOf("mist") != -1 || descLower.indexOf("fog") != -1 || descLower.indexOf("haze") != -1) {
+    icon.code = 64;  // Cloud
+    icon.font = "u8g2_font_open_iconic_weather_6x_t";
+  }
+  return icon;
+}
+void buzzerOn() {
+  digitalWrite(BUZZER_PIN, HIGH);
+}
+void buzzerOff() {
+  digitalWrite(BUZZER_PIN, LOW);
+}
+void triggerAlarm() {
+  for (int i = 0; i < 3; i++) {
+    buzzerOn();
+    vTaskDelay(pdMS_TO_TICKS(500));
+    buzzerOff();
+    vTaskDelay(pdMS_TO_TICKS(500));
+  }
+}
+byte bcdToDec(byte val) {
+  return (val / 16 * 10 + val % 16);
+}
+void SendDataMax7219(int HighByte, int LowByte) {
+  // Gửi High Byte (địa chỉ)
+  for (int i = 7; i >= 0; i--) {
+    digitalWrite(DataOUT, bitRead(HighByte, i));
+    delayMicroseconds(10);
+    digitalWrite(CLK, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(CLK, LOW);
+    delayMicroseconds(10);
+  }
+  // Gửi Low Byte (dữ liệu)
+  for (int i = 7; i >= 0; i--) {
+    digitalWrite(DataOUT, bitRead(LowByte, i));
+    delayMicroseconds(10);
+    digitalWrite(CLK, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(CLK, LOW);
+    delayMicroseconds(10);
+  }
+  // Load dữ liệu
+  digitalWrite(Load, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(Load, LOW);
+  delayMicroseconds(10);
+}
+void ShowDigits7SegmentLED(int d3, int d2, int d1, int d0) {
+  SendDataMax7219(0x01, digits_seg0[d3]);
+  SendDataMax7219(0x02, digits_seg1[d2]);
+  SendDataMax7219(0x03, digits_seg2[d1]);
+  SendDataMax7219(0x04, digits_seg3[d0]);
+}
 void enableRTCBatteryMode() {
-  Wire.beginTransmission(0x68);  // Địa chỉ DS1307
-  Wire.write(0x00);              // Thanh ghi giây
+  Wire.beginTransmission(0x68);
+  Wire.write(0x00);
   Wire.endTransmission();
-
   Wire.requestFrom(0x68, 1);
   uint8_t seconds = Wire.read();
-
-  // Bật bộ dao động (CH = 0)
-  if (seconds & 0x80) {  // Nếu bit CH = 1, đồng hồ bị dừng
+  if (seconds & 0x80) {
     Wire.beginTransmission(0x68);
     Wire.write(0x00);
-    Wire.write(seconds & 0x7F);  // Xóa bit CH để bật đồng hồ
+    Wire.write(seconds & 0x7F);
     Wire.endTransmission();
     Serial.println("Đã bật bộ dao động DS1307");
   }
+}
+void readDS1307Time(byte& hour, byte& minute, byte& second) {
+  Wire.beginTransmission(0x68);
+  Wire.write(0x00);
+  Wire.endTransmission();
+
+  Wire.requestFrom(0x68, 3);
+  second = bcdToDec(Wire.read());
+  minute = bcdToDec(Wire.read());
+  hour = bcdToDec(Wire.read() & 0x3F);
+}
+void connectWiFi() {
+  WiFi.begin(ssid, password);
+  int timeout = 10;
+  while (WiFi.status() != WL_CONNECTED && timeout > 0) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    timeout--;
+  }
+}
+bool getNTPTime(struct tm* timeinfo) {
+  if (WiFi.status() == WL_CONNECTED) {
+    configTime(7 * 3600, 0, "pool.ntp.org");
+    if (getLocalTime(timeinfo)) {
+      return true;
+    }
+  }
+  return false;
+}
+bool syncTimeFromAPI() {
+  struct tm timeinfo;
+  if (getNTPTime(&timeinfo)) {
+    DateTime ntpTime = DateTime(
+      timeinfo.tm_year + 1900,
+      timeinfo.tm_mon + 1,
+      timeinfo.tm_mday,
+      timeinfo.tm_hour,
+      timeinfo.tm_min,
+      timeinfo.tm_sec);
+
+    // Lưu thời gian vào DS1307
+    rtc.adjust(ntpTime);
+
+    // Kiểm tra thời gian DS1307 sau khi lưu
+    DateTime now = rtc.now();
+    if (now.year() == ntpTime.year() && now.month() == ntpTime.month() && now.day() == ntpTime.day() && now.hour() == ntpTime.hour() && now.minute() == ntpTime.minute()) {
+      Serial.println("Đồng bộ thời gian từ NTP vào DS1307 thành công: " + ntpTime.timestamp());
+      return true;
+    } else {
+      Serial.println("Lỗi: Thời gian DS1307 không khớp sau khi đồng bộ! DS1307: " + now.timestamp() + ", NTP: " + ntpTime.timestamp());
+      return false;
+    }
+  }
+  Serial.println("Lỗi đồng bộ thời gian từ NTP");
+  return false;
+}
+void fetchWeather() {
+  HTTPClient http;
+  http.begin(weather_api);
+  int httpResponseCode = http.GET();
+
+  if (httpResponseCode == 200) {
+    String payload = http.getString();
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, payload);
+
+    float temp = doc["main"]["temp"];
+    String desc = doc["weather"][0]["description"];
+    String weatherStr = String("Hanoi: ") + String(temp, 1) + "C, " + desc;
+
+    if (xSemaphoreTake(weatherSemaphore, portMAX_DELAY) == pdTRUE) {
+      weatherInfo = weatherStr;
+      xSemaphoreGive(weatherSemaphore);
+    }
+  } else {
+    if (xSemaphoreTake(weatherSemaphore, portMAX_DELAY) == pdTRUE) {
+      weatherInfo = "Weather: Error";
+      xSemaphoreGive(weatherSemaphore);
+    }
+  }
+  http.end();
 }
 
 void setupI2S_new_driver() {
@@ -222,7 +307,7 @@ void setupI2S_new_driver() {
       },
     },
   };
-  std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_LEFT;  // INMP441 outputs on left channel
+  std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_LEFT;
   err = i2s_channel_init_std_mode(mic_rx_chan, &std_cfg);
   if (err != ESP_OK) {
     i2s_del_channel(mic_rx_chan);
@@ -238,7 +323,6 @@ void setupI2S_new_driver() {
   }
   micI2SInitialized = true;
 }
-
 void cleanupI2S_new_driver() {
   if (mic_rx_chan != NULL) {
     esp_err_t disable_err = i2s_channel_disable(mic_rx_chan);
@@ -251,7 +335,6 @@ void cleanupI2S_new_driver() {
   }
   micI2SInitialized = false;
 }
-
 bool recordAudio_new_driver(uint8_t** outBuffer, size_t* outLength) {
   if (!micI2SInitialized || mic_rx_chan == NULL) {
     return false;
@@ -287,7 +370,7 @@ bool recordAudio_new_driver(uint8_t** outBuffer, size_t* outLength) {
         return false;
       }
     } else {
-      readErrorCount = 0;  // Reset lỗi nếu đọc thành công
+      readErrorCount = 0;
     }
     offset += bytesRead;
   }
@@ -298,7 +381,6 @@ bool recordAudio_new_driver(uint8_t** outBuffer, size_t* outLength) {
   Serial.printf("Free heap sau khi thu âm: %d bytes\n", ESP.getFreeHeap());
   return true;
 }
-
 void playTTS(const char* text, const char* lang) {
   if (!audio) {
     return;
@@ -313,7 +395,7 @@ void playTTS(const char* text, const char* lang) {
   }
 
   audio->setPinout(I2S_SPK_BCLK, I2S_SPK_LRC, I2S_SPK_DOUT, I2S_NUM_1);
-  audio->setVolume(80);
+  audio->setVolume(100);
   if (!audio->connecttospeech(text, lang)) {
     Serial.println("Lỗi: Không thể kết nối đến dịch vụ TTS");
     return;
@@ -327,109 +409,6 @@ void playTTS(const char* text, const char* lang) {
   audio->stopSong();  // Dừng để tránh xung đột
   Serial.println("TTS hoàn tất.");
   Serial.printf("Free heap sau TTS: %d bytes\n", ESP.getFreeHeap());
-}
-void fetchForecast() {
-  HTTPClient http;
-  http.begin(forecast_api);
-  int httpResponseCode = http.GET();
-
-  if (httpResponseCode == 200) {
-    String payload = http.getString();
-    DynamicJsonDocument doc(8192);
-    DeserializationError error = deserializeJson(doc, payload);
-
-    if (error) {
-      Serial.println("Lỗi phân tích JSON dự báo: " + String(error.c_str()));
-      if (xSemaphoreTake(forecastSemaphore, portMAX_DELAY) == pdTRUE) {
-        for (int i = 0; i < 3; i++) {
-          forecastData[i].desc = "Error";
-          forecastData[i].pop = 0.0;
-          forecastData[i].temp = 0.0;
-          forecastData[i].timestamp = 0;
-        }
-        xSemaphoreGive(forecastSemaphore);
-      }
-      http.end();
-      return;
-    }
-
-    JsonArray list = doc["list"];
-    int dayCount = 0;
-    DateTime now = rtc.now();
-    uint32_t todayMidnight = now.unixtime() - (now.hour() * 3600) - (now.minute() * 60) - now.second();
-
-    // Lưu trữ mục gần nhất với 12:00 cho mỗi ngày
-    struct ForecastCandidate {
-      uint32_t timestamp;
-      float temp;
-      String desc;
-      float pop;
-      int64_t timeDiff;
-    };
-    ForecastCandidate candidates[3] = {
-      { 0, 0.0, "N/A", 0.0, INT64_MAX },
-      { 0, 0.0, "N/A", 0.0, INT64_MAX },
-      { 0, 0.0, "N/A", 0.0, INT64_MAX }
-    };
-
-    for (JsonObject item : list) {
-      uint32_t dt = item["dt"];
-      struct tm timeinfo;
-      time_t rawtime = dt;
-      localtime_r(&rawtime, &timeinfo);
-
-      // Xác định ngày dự báo (1, 2, 3 ngày tiếp theo)
-      for (int i = 0; i < 3; i++) {
-        uint32_t targetMidnight = todayMidnight + (i + 1) * 86400;
-        uint32_t targetNoon = targetMidnight + 12 * 3600;  // 12:00 ngày tiếp theo
-        if (dt >= targetMidnight && dt < targetMidnight + 86400) {
-          // Tính khoảng cách thời gian đến 12:00
-          int64_t timeDiff = (int64_t)dt - (int64_t)targetNoon;
-          if (timeDiff < 0) timeDiff = -timeDiff;  // Lấy giá trị tuyệt đối
-
-          // Nếu gần 12:00 hơn mục hiện tại
-          if (timeDiff < candidates[i].timeDiff) {
-            candidates[i].timestamp = dt;
-            candidates[i].temp = item["main"]["temp"];
-            candidates[i].desc = item["weather"][0]["description"].as<String>();
-            candidates[i].pop = item["pop"];
-            candidates[i].timeDiff = timeDiff;
-          }
-        }
-      }
-    }
-
-    // Cập nhật forecastData
-    if (xSemaphoreTake(forecastSemaphore, portMAX_DELAY) == pdTRUE) {
-      for (int i = 0; i < 3; i++) {
-        forecastData[i].timestamp = candidates[i].timestamp;
-        forecastData[i].temp = candidates[i].temp;
-        forecastData[i].desc = candidates[i].desc;
-        forecastData[i].pop = candidates[i].pop;
-
-        // Log dữ liệu
-        char timeStr[20];
-        time_t rawtime = forecastData[i].timestamp;
-        struct tm* timeinfo = localtime(&rawtime);
-        strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M", timeinfo);
-        Serial.printf("Dự báo ngày %d: %s, %.1f°C, %s, xác suất mưa %.0f%%\n",
-                      i + 1, timeStr, forecastData[i].temp, forecastData[i].desc.c_str(), forecastData[i].pop * 100);
-      }
-      xSemaphoreGive(forecastSemaphore);
-    }
-  } else {
-    Serial.println("Lỗi HTTP dự báo: " + String(httpResponseCode));
-    if (xSemaphoreTake(forecastSemaphore, portMAX_DELAY) == pdTRUE) {
-      for (int i = 0; i < 3; i++) {
-        forecastData[i].desc = "Error";
-        forecastData[i].pop = 0.0;
-        forecastData[i].temp = 0.0;
-        forecastData[i].timestamp = 0;
-      }
-      xSemaphoreGive(forecastSemaphore);
-    }
-  }
-  http.end();
 }
 void createWavHeader(uint8_t* wavHeader, int dataSize) {
   memcpy(wavHeader, "RIFF", 4);
@@ -446,7 +425,6 @@ void createWavHeader(uint8_t* wavHeader, int dataSize) {
   memcpy(wavHeader + 36, "data", 4);
   *(uint32_t*)(wavHeader + 40) = dataSize;
 }
-
 String parseTranscript(const String& response) {
   DynamicJsonDocument doc(2048);
   DeserializationError error = deserializeJson(doc, response);
@@ -462,7 +440,6 @@ String parseTranscript(const String& response) {
   }
   return "";
 }
-
 bool extractTimerTime(const String& transcript, int& hour, int& minute) {
   String lowerTranscript = removeVietnameseDiacritics(transcript);
   lowerTranscript.toLowerCase();
@@ -470,41 +447,27 @@ bool extractTimerTime(const String& transcript, int& hour, int& minute) {
 
   int foundMinute = -1;
 
-  // Mảng số tiếng Việt từ 0-99
   const char* vietnameseNumbers[] = {
-    "khong", "mot", "hai", "ba", "bon", "nam", "sau", "bay", "tam", "chin",
-    "muoi", "muoi mot", "muoi hai", "muoi ba", "muoi bon", "muoi nam", "muoi sau",
-    "muoi bay", "muoi tam", "muoi chin", "hai muoi", "hai muoi mot", "hai muoi hai",
-    "hai muoi ba", "hai muoi bon", "hai muoi nam", "hai muoi sau", "hai muoi bay",
-    "hai muoi tam", "hai muoi chin", "ba muoi", "ba muoi mot", "ba muoi hai",
-    "ba muoi ba", "ba muoi bon", "ba muoi nam", "ba muoi sau", "ba muoi bay",
-    "ba muoi tam", "ba muoi chin", "bon muoi", "bon muoi mot", "bon muoi hai",
-    "bon muoi ba", "bon muoi bon", "bon muoi nam", "bon muoi sau", "bon muoi bay",
-    "bon muoi tam", "bon muoi chin", "nam muoi", "nam muoi mot", "nam muoi hai",
-    "nam muoi ba", "nam muoi bon", "nam muoi nam", "nam muoi sau", "nam muoi bay",
-    "nam muoi tam", "nam muoi chin", "sau muoi", "sau muoi mot", "sau muoi hai",
-    "sau muoi ba", "sau muoi bon", "sau muoi nam", "sau muoi sau", "sau muoi bay",
-    "sau muoi tam", "sau muoi chin", "bay muoi", "bay muoi mot", "bay muoi hai",
-    "bay muoi ba", "bay muoi bon", "bay muoi nam", "bay muoi sau", "bay muoi bay",
-    "bay muoi tam", "bay muoi chin", "tam muoi", "tam muoi mot", "tam muoi hai",
-    "tam muoi ba", "tam muoi bon", "tam muoi nam", "tam muoi sau", "tam muoi bay",
-    "tam muoi tam", "tam muoi chin", "chin muoi", "chin muoi mot", "chin muoi hai",
-    "chin muoi ba", "chin muoi bon", "chin muoi nam", "chin muoi sau", "chin muoi bay",
-    "chin muoi tam", "chin muoi chin"
+    "khong", "mot", "hai", "ba", "bon", "nam", "sau", "bay", "tam", "chin", "muoi", "muoi mot", "muoi hai", "muoi ba", "muoi bon", "muoi nam", "muoi sau",
+    "muoi bay", "muoi tam", "muoi chin", "hai muoi", "hai muoi mot", "hai muoi hai", "hai muoi ba", "hai muoi bon", "hai muoi nam", "hai muoi sau", "hai muoi bay",
+    "hai muoi tam", "hai muoi chin", "ba muoi", "ba muoi mot", "ba muoi hai", "ba muoi ba", "ba muoi bon", "ba muoi nam", "ba muoi sau", "ba muoi bay",
+    "ba muoi tam", "ba muoi chin", "bon muoi", "bon muoi mot", "bon muoi hai", "bon muoi ba", "bon muoi bon", "bon muoi nam", "bon muoi sau", "bon muoi bay",
+    "bon muoi tam", "bon muoi chin", "nam muoi", "nam muoi mot", "nam muoi hai", "nam muoi ba", "nam muoi bon", "nam muoi nam", "nam muoi sau", "nam muoi bay",
+    "nam muoi tam", "nam muoi chin", "sau muoi", "sau muoi mot", "sau muoi hai", "sau muoi ba", "sau muoi bon", "sau muoi nam", "sau muoi sau", "sau muoi bay",
+    "sau muoi tam", "sau muoi chin", "bay muoi", "bay muoi mot", "bay muoi hai", "bay muoi ba", "bay muoi bon", "bay muoi nam", "bay muoi sau", "bay muoi bay",
+    "bay muoi tam", "bay muoi chin", "tam muoi", "tam muoi mot", "tam muoi hai", "tam muoi ba", "tam muoi bon", "tam muoi nam", "tam muoi sau", "tam muoi bay",
+    "tam muoi tam", "tam muoi chin", "chin muoi", "chin muoi mot", "chin muoi hai", "chin muoi ba", "chin muoi bon", "chin muoi nam", "chin muoi sau", "chin muoi bay", "chin muoi tam", "chin muoi chin"
   };
-
   // Tìm vị trí "phut"
   int minuteIndex = lowerTranscript.indexOf("phut");
   if (minuteIndex == -1) {
     Serial.println("Không tìm thấy 'phút' trong transcript (timer)");
     return false;
   }
-
   // Lấy chuỗi trước "phut"
   String beforeMinute = lowerTranscript.substring(0, minuteIndex);
   beforeMinute.trim();
   Serial.println("Chuỗi trước phút: [" + beforeMinute + "]");
-
   // Tách chuỗi thành các từ
   String words[10];
   int wordCount = 0;
@@ -520,11 +483,8 @@ bool extractTimerTime(const String& transcript, int& hour, int& minute) {
       start = i + 1;
     }
   }
-
-  // Tìm số hợp lệ gần "phut" nhất
   int lastNumber = -1;
   int lastNumberPos = -1;
-
   // Kiểm tra trường hợp hai số nối bằng "-" (như "2 - 3" thành 23)
   for (int i = 0; i < wordCount - 2; i++) {
     Serial.printf("Kiểm tra ghép số tại i=%d: [%s] [%s] [%s]\n", i, words[i].c_str(),
@@ -544,21 +504,17 @@ bool extractTimerTime(const String& transcript, int& hour, int& minute) {
       }
     }
   }
-
   // Nếu không tìm thấy số ghép, kiểm tra số ghép tiếng Việt hoặc số đơn
   if (lastNumber == -1) {
     Serial.println("Không tìm thấy số ghép với '-', kiểm tra số khác");
     for (int i = wordCount - 1; i >= 0; i--) {
       String currentWord = words[i];
       String nextWord = (i + 1 < wordCount) ? words[i + 1] : "";
-
-      // Tạo số ghép (ví dụ: "muoi" + "mot" = "muoi mot")
       String combined = currentWord;
       if (nextWord != "" && (currentWord == "muoi" || currentWord == "hai" || currentWord == "ba" || currentWord == "bon" || currentWord == "nam" || currentWord == "sau" || currentWord == "bay" || currentWord == "tam" || currentWord == "chin")) {
         combined = currentWord + " " + nextWord;
         Serial.println("Kiểm tra số ghép tiếng Việt: [" + combined + "]");
       }
-
       // Kiểm tra số ghép trong mảng vietnameseNumbers
       for (int j = 0; j <= 99; j++) {
         if (combined == vietnameseNumbers[j]) {
@@ -568,7 +524,6 @@ bool extractTimerTime(const String& transcript, int& hour, int& minute) {
           break;
         }
       }
-
       // Kiểm tra số đơn
       if (lastNumber == -1) {
         for (int j = 0; j <= 99; j++) {
@@ -580,38 +535,32 @@ bool extractTimerTime(const String& transcript, int& hour, int& minute) {
           }
         }
       }
-
       // Kiểm tra số dạng chuỗi (như "11")
       if (lastNumber == -1 && currentWord.toInt() > 0 && currentWord.toInt() <= 99) {
         lastNumber = currentWord.toInt();
         lastNumberPos = beforeMinute.lastIndexOf(currentWord);
         Serial.printf("Tìm thấy số dạng chuỗi: %d tại vị trí %d\n", lastNumber, lastNumberPos);
       }
-
       if (lastNumber != -1) {
         break;  // Lấy số gần "phut" nhất
       }
     }
   }
-
   // Xử lý lỗi nhận diện "moi" thay vì "muoi"
   if (lastNumber == -1 && beforeMinute.indexOf("moi") != -1) {
     lastNumber = 10;
     lastNumberPos = beforeMinute.lastIndexOf("moi");
     Serial.println("Tìm thấy số 'moi' (mười): 10");
   }
-
   if (lastNumber == -1) {
     Serial.println("Không tìm thấy số phút hợp lệ trong transcript");
     return false;
   }
-
   foundMinute = lastNumber;
   if (foundMinute < 0 || foundMinute > 99) {
     Serial.printf("Lỗi: Số phút (%d) không hợp lệ, phải từ 0 đến 99\n", foundMinute);
     return false;
   }
-
   hour = 0;  // Hẹn giờ không dùng giờ
   minute = foundMinute;
   Serial.printf("Trích xuất thời gian (timer): %d giờ %d phút\n", hour, minute);
@@ -621,25 +570,16 @@ bool extractAlarmTime(const String& transcript, int& hour, int& minute) {
   String lowerTranscript = removeVietnameseDiacritics(transcript);
   lowerTranscript.toLowerCase();
   Serial.println("Lower transcript (alarm): [" + lowerTranscript + "]");
-
   int foundHour = 0;
   int foundMinute = 0;
 
-  // Danh sách số dạng chữ từ 0 đến 59
   const char* vietnameseNumbers[] = {
-    "khong", "mot", "hai", "ba", "bon", "nam", "sau", "bay", "tam", "chin", "muoi",
-    "muoi mot", "muoi hai", "muoi ba", "muoi bon", "muoi lam", "muoi sau",
-    "muoi bay", "muoi tam", "muoi chin", "hai muoi", "hai muoi mot",
-    "hai muoi hai", "hai muoi ba", "hai muoi tu", "hai muoi lam", "hai muoi sau",
-    "hai muoi bay", "hai muoi tam", "hai muoi chin", "ba muoi", "ba muoi mot",
-    "ba muoi hai", "ba muoi ba", "ba muoi bon", "ba muoi lam", "ba muoi sau",
-    "ba muoi bay", "ba muoi tam", "ba muoi chin", "bon muoi", "bon muoi mot",
-    "bon muoi hai", "bon muoi ba", "bon muoi bon", "bon muoi lam", "bon muoi sau",
-    "bon muoi bay", "bon muoi tam", "bon muoi chin", "nam muoi", "nam muoi mot",
-    "nam muoi hai", "nam muoi ba", "nam muoi bon", "nam muoi lam", "nam muoi sau",
-    "nam muoi bay", "nam muoi tam", "nam muoi chin"
+    "khong", "mot", "hai", "ba", "bon", "nam", "sau", "bay", "tam", "chin", "muoi", "muoi mot", "muoi hai", "muoi ba", "muoi bon", "muoi lam", "muoi sau",
+    "muoi bay", "muoi tam", "muoi chin", "hai muoi", "hai muoi mot", "hai muoi hai", "hai muoi ba", "hai muoi tu", "hai muoi lam", "hai muoi sau",
+    "hai muoi bay", "hai muoi tam", "hai muoi chin", "ba muoi", "ba muoi mot", "ba muoi hai", "ba muoi ba", "ba muoi bon", "ba muoi lam", "ba muoi sau",
+    "ba muoi bay", "ba muoi tam", "ba muoi chin", "bon muoi", "bon muoi mot", "bon muoi hai", "bon muoi ba", "bon muoi bon", "bon muoi lam", "bon muoi sau",
+    "bon muoi bay", "bon muoi tam", "bon muoi chin", "nam muoi", "nam muoi mot", "nam muoi hai", "nam muoi ba", "nam muoi bon", "nam muoi lam", "nam muoi sau", "nam muoi bay", "nam muoi tam", "nam muoi chin"
   };
-
   // Tách transcript thành các từ
   char transcriptCopy[128];
   strncpy(transcriptCopy, lowerTranscript.c_str(), sizeof(transcriptCopy) - 1);
@@ -651,19 +591,16 @@ bool extractAlarmTime(const String& transcript, int& hour, int& minute) {
   int numIndices[16];
   int numValues[16];
   int numCount = 0;
-
   // Duyệt qua các từ để tìm "gio", "h" và các số
   while (token != NULL && numCount < 16) {
     String tokenStr = String(token);
     tokenStr.trim();
-
     // Xử lý trường hợp "XhY" (ví dụ: "2h15")
     if (tokenStr.indexOf("h") != -1 && tokenStr != "phut") {
       hIndex = tokenIndex;
       int hPos = tokenStr.indexOf("h");
       String hourPart = tokenStr.substring(0, hPos);
       String minutePart = tokenStr.substring(hPos + 1);
-
       // Xử lý giờ
       int hourNum = hourPart.toInt();
       if (hourNum > 0 || hourPart == "0") {
@@ -682,7 +619,6 @@ bool extractAlarmTime(const String& transcript, int& hour, int& minute) {
           }
         }
       }
-
       // Xử lý phút
       if (minutePart.length() > 0) {
         int minuteNum = minutePart.toInt();
@@ -727,8 +663,6 @@ bool extractAlarmTime(const String& transcript, int& hour, int& minute) {
     token = strtok(NULL, " ");
     tokenIndex++;
   }
-
-  // Log debug
   Serial.printf("gioIndex: %d, hIndex: %d, numCount: %d\n", gioIndex, hIndex, numCount);
   for (int i = 0; i < numCount; i++) {
     Serial.printf("Number %d at index %d: %d\n", i, numIndices[i], numValues[i]);
@@ -753,18 +687,162 @@ bool extractAlarmTime(const String& transcript, int& hour, int& minute) {
       foundMinute = 0;  // Báo thức không có phút → mặc định 0
     }
   }
-
   if (foundHour == 0 && foundMinute == 0) {
     Serial.println("Không tìm thấy giờ hoặc phút trong transcript (alarm).");
     return false;
   }
-
   hour = foundHour;
   minute = foundMinute;
   Serial.printf("Trích xuất thời gian (alarm): %d giờ %d phút\n", hour, minute);
   return true;
 }
-
+bool extractAppointmentDate(const String& transcript, int& day, int& month) {
+  String lowerTranscript = removeVietnameseDiacritics(transcript);
+  lowerTranscript.toLowerCase();
+  lowerTranscript.trim();
+  lowerTranscript.replace(".", "");
+  Serial.println("Lower transcript (appointment): [" + lowerTranscript + "]");
+  int foundDay = -1;
+  int foundMonth = -1;
+  // Tìm "lich" hoặc "ngay" để xác định điểm bắt đầu
+  int startIndex = lowerTranscript.indexOf("lich");
+  if (startIndex == -1) {
+    startIndex = lowerTranscript.indexOf("ngay");
+  }
+  Serial.printf("startIndex sau lich/ngay: %d\n", startIndex);
+  // Nếu tìm thấy "lich" hoặc "ngay", bỏ qua từ này và khoảng trắng
+  if (startIndex != -1) {
+    startIndex = lowerTranscript.indexOf(" ", startIndex);
+    if (startIndex == -1) {
+      startIndex = lowerTranscript.length();
+    }
+  } else {
+    startIndex = 0;
+  }
+  Serial.printf("startIndex sau xử lý khoảng trắng: %d\n", startIndex);
+  // Lấy chuỗi sau "lich" hoặc "ngay"
+  String datePart = lowerTranscript.substring(startIndex);
+  datePart.trim();
+  Serial.println("Date part: [" + datePart + "]");
+  const char* vietnameseNumbers[] = {
+    "khong", "mot", "hai", "ba", "bon", "nam", "sau", "bay", "tam", "chin", "muoi", "muoi mot", "muoi hai", "muoi ba", "muoi bon", "muoi nam", "muoi sau", "muoi bay", "muoi tam", "muoi chin",
+    "hai muoi", "hai muoi mot", "hai muoi hai", "hai muoi ba", "hai muoi bon", "hai muoi nam", "hai muoi sau", "hai muoi bay", "hai muoi tam", "hai muoi chin", "ba muoi", "ba muoi mot"
+  };
+  // Tìm "/" để xử lý định dạng DD/MM
+  int slashIndex = datePart.indexOf("/");
+  if (slashIndex != -1) {
+    String dayStr = datePart.substring(0, slashIndex);
+    String monthStr = datePart.substring(slashIndex + 1);
+    dayStr.trim();
+    monthStr.trim();
+    Serial.println("Day string trước làm sạch: [" + dayStr + "], Month string trước làm sạch: [" + monthStr + "]");
+    // Làm sạch chuỗi ngày
+    String cleanDayStr = "";
+    for (int i = 0; i < dayStr.length(); i++) {
+      if (isDigit(dayStr[i])) {
+        cleanDayStr += dayStr[i];
+      }
+    }
+    // Làm sạch chuỗi tháng
+    String cleanMonthStr = "";
+    for (int i = 0; i < monthStr.length(); i++) {
+      if (!isDigit(monthStr[i])) {
+        cleanMonthStr = monthStr.substring(0, i);
+        break;
+      }
+      cleanMonthStr += monthStr[i];
+    }
+    Serial.println("Day string sau làm sạch: [" + cleanDayStr + "], Month string sau làm sạch: [" + cleanMonthStr + "]");
+    if (cleanDayStr.toInt() > 0 && cleanDayStr.toInt() <= 31) {
+      foundDay = cleanDayStr.toInt();
+    }
+    if (cleanMonthStr.toInt() > 0 && cleanMonthStr.toInt() <= 12) {
+      foundMonth = cleanMonthStr.toInt();
+    }
+    Serial.printf("Parsed day: %d, month: %d\n", foundDay, foundMonth);
+  } else {
+    // Xử lý định dạng chữ (ví dụ: "21 thang 5")
+    String words[10];
+    int wordCount = 0;
+    int start = 0;
+    for (int i = 0; i <= datePart.length(); i++) {
+      if (i == datePart.length() || datePart[i] == ' ') {
+        if (start < i) {
+          words[wordCount] = datePart.substring(start, i);
+          words[wordCount].trim();
+          Serial.printf("Từ %d: [%s]\n", wordCount, words[wordCount].c_str());
+          wordCount++;
+        }
+        start = i + 1;
+      }
+    }
+    // Tìm ngày và tháng
+    int thangIndex = -1;
+    for (int i = 0; i < wordCount; i++) {
+      if (words[i] == "thang") {
+        thangIndex = i;
+        break;
+      }
+    }
+    if (thangIndex != -1) {
+      // Tìm ngày trước "thang"
+      for (int i = thangIndex - 1; i >= 0; i--) {
+        for (int j = 1; j <= 31; j++) {
+          if (words[i] == vietnameseNumbers[j] || words[i].toInt() == j) {
+            foundDay = j;
+            break;
+          }
+        }
+        if (foundDay != -1) break;
+      }
+      // Tìm tháng sau "thang"
+      for (int i = thangIndex + 1; i < wordCount; i++) {
+        for (int j = 1; j <= 12; j++) {
+          if (words[i] == vietnameseNumbers[j] || words[i].toInt() == j) {
+            foundMonth = j;
+            break;
+          }
+        }
+        if (foundMonth != -1) break;
+      }
+    } else {
+      // Không tìm thấy "thang", thử tìm hai số liên tiếp
+      for (int i = 0; i < wordCount - 1; i++) {
+        int num1 = words[i].toInt();
+        int num2 = words[i + 1].toInt();
+        if (num1 >= 1 && num1 <= 31 && num2 >= 1 && num2 <= 12) {
+          foundDay = num1;
+          foundMonth = num2;
+          break;
+        }
+        for (int j = 1; j <= 31; j++) {
+          if (words[i] == vietnameseNumbers[j]) {
+            foundDay = j;
+            break;
+          }
+        }
+        if (foundDay != -1) {
+          for (int j = 1; j <= 12; j++) {
+            if (words[i + 1] == vietnameseNumbers[j]) {
+              foundMonth = j;
+              break;
+            }
+          }
+          if (foundMonth != -1) break;
+        }
+      }
+    }
+    Serial.printf("Parsed day: %d, month: %d\n", foundDay, foundMonth);
+  }
+  if (foundDay == -1 || foundMonth == -1) {
+    Serial.println("Không tìm thấy ngày hoặc tháng hợp lệ");
+    return false;
+  }
+  day = foundDay;
+  month = foundMonth;
+  Serial.printf("Trích xuất ngày hẹn: %d/%d\n", day, month);
+  return true;
+}
 String removeVietnameseDiacritics(String input) {
   String output = input;
   const char* vietnamese[] = {
@@ -790,7 +868,6 @@ String removeVietnameseDiacritics(String input) {
   }
   return output;
 }
-
 void timeToVietnameseText(int hour, int minute, int day, int month, int year, char* output, size_t maxLen) {
   const char* numbers[] = {
     "không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín", "mười",
@@ -861,7 +938,102 @@ void timeToVietnameseText(int hour, int minute, int day, int month, int year, ch
 
   strncat(output, year_text, maxLen - strlen(output) - 1);
 }
+void fetchForecast() {
+  HTTPClient http;
+  http.begin(forecast_api);
+  int httpResponseCode = http.GET();
 
+  if (httpResponseCode == 200) {
+    String payload = http.getString();
+    DynamicJsonDocument doc(8192);
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error) {
+      Serial.println("Lỗi phân tích JSON dự báo: " + String(error.c_str()));
+      if (xSemaphoreTake(forecastSemaphore, portMAX_DELAY) == pdTRUE) {
+        for (int i = 0; i < 3; i++) {
+          forecastData[i].desc = "Error";
+          forecastData[i].pop = 0.0;
+          forecastData[i].temp = 0.0;
+          forecastData[i].timestamp = 0;
+        }
+        xSemaphoreGive(forecastSemaphore);
+      }
+      http.end();
+      return;
+    }
+
+    JsonArray list = doc["list"];
+    int dayCount = 0;
+    DateTime now = rtc.now();
+    uint32_t todayMidnight = now.unixtime() - (now.hour() * 3600) - (now.minute() * 60) - now.second();
+
+    struct ForecastCandidate {
+      uint32_t timestamp;
+      float temp;
+      String desc;
+      float pop;
+      int64_t timeDiff;
+    };
+    ForecastCandidate candidates[3] = {
+      { 0, 0.0, "N/A", 0.0, INT64_MAX },
+      { 0, 0.0, "N/A", 0.0, INT64_MAX },
+      { 0, 0.0, "N/A", 0.0, INT64_MAX }
+    };
+
+    for (JsonObject item : list) {
+      uint32_t dt = item["dt"];
+      struct tm timeinfo;
+      time_t rawtime = dt;
+      localtime_r(&rawtime, &timeinfo);
+
+      for (int i = 0; i < 3; i++) {
+        uint32_t targetMidnight = todayMidnight + (i + 1) * 86400;
+        uint32_t targetNoon = targetMidnight + 12 * 3600;  // 12:00 ngày tiếp theo
+        if (dt >= targetMidnight && dt < targetMidnight + 86400) {
+          int64_t timeDiff = (int64_t)dt - (int64_t)targetNoon;
+          if (timeDiff < 0) timeDiff = -timeDiff;
+          if (timeDiff < candidates[i].timeDiff) {
+            candidates[i].timestamp = dt;
+            candidates[i].temp = item["main"]["temp"];
+            candidates[i].desc = item["weather"][0]["description"].as<String>();
+            candidates[i].pop = item["pop"];
+            candidates[i].timeDiff = timeDiff;
+          }
+        }
+      }
+    }
+
+    if (xSemaphoreTake(forecastSemaphore, portMAX_DELAY) == pdTRUE) {
+      for (int i = 0; i < 3; i++) {
+        forecastData[i].timestamp = candidates[i].timestamp;
+        forecastData[i].temp = candidates[i].temp;
+        forecastData[i].desc = candidates[i].desc;
+        forecastData[i].pop = candidates[i].pop;
+
+        char timeStr[20];
+        time_t rawtime = forecastData[i].timestamp;
+        struct tm* timeinfo = localtime(&rawtime);
+        strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M", timeinfo);
+        Serial.printf("Dự báo ngày %d: %s, %.1f°C, %s, xác suất mưa %.0f%%\n",
+                      i + 1, timeStr, forecastData[i].temp, forecastData[i].desc.c_str(), forecastData[i].pop * 100);
+      }
+      xSemaphoreGive(forecastSemaphore);
+    }
+  } else {
+    Serial.println("Lỗi HTTP dự báo: " + String(httpResponseCode));
+    if (xSemaphoreTake(forecastSemaphore, portMAX_DELAY) == pdTRUE) {
+      for (int i = 0; i < 3; i++) {
+        forecastData[i].desc = "Error";
+        forecastData[i].pop = 0.0;
+        forecastData[i].temp = 0.0;
+        forecastData[i].timestamp = 0;
+      }
+      xSemaphoreGive(forecastSemaphore);
+    }
+  }
+  http.end();
+}
 void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
   Serial.printf("pcmSize: %d bytes\n", pcmSize);
   if (pcmSize == 0) {
@@ -922,6 +1094,7 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
   heap_caps_free(payload);
 
   String responseText = "";
+  bool isAppointmentRecording = false;
   if (httpResponseCode > 0) {
     String response = http.getString();
     Serial.println("Phản hồi API: " + response);
@@ -929,12 +1102,14 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
     String transcript = parseTranscript(response);
     if (transcript == "") {
       Serial.println("Lỗi: Transcript rỗng, không nhận diện được giọng nói");
-      Serial1.write('c');
+      // Serial1.print('c');
       responseText = "Không nhận diện được giọng nói, vui lòng thử lại";
     } else {
       Serial.print("Transcript: ");
       Serial.println(transcript);
 
+      // Loại bỏ dấu chấm cuối và khoảng trắng thừa
+      transcript.trim();
       transcript.replace(".", "");
       String noDiacriticsTranscript = removeVietnameseDiacritics(transcript);
       String lowerTranscript = noDiacriticsTranscript;
@@ -947,7 +1122,6 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
         Serial.println("Lỗi: Không lấy được commandSemaphore");
       }
 
-      // Hàm chuyển đổi mô tả thời tiết sang tiếng Việt
       auto translateWeatherDesc = [](String desc) {
         desc.replace("clear sky", "trời quang đãng");
         desc.replace("few clouds", "trời quang đãng");
@@ -969,27 +1143,26 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
         return desc;
       };
 
-      // Xử lý các lệnh
       if (lowerTranscript.indexOf("do") != -1) {
         Serial.println("Bật đèn đỏ");
         responseText = "Đã bật đèn đỏ";
-        Serial1.write('c');
+        Serial1.print('c');
       } else if (lowerTranscript.indexOf("vang") != -1) {
         Serial.println("Bật đèn vàng");
         responseText = "Đã bật đèn vàng";
-        Serial1.write('d');
+        Serial1.print('d');
       } else if (lowerTranscript.indexOf("xanh") != -1) {
         Serial.println("Bật đèn xanh");
         responseText = "Đã bật đèn xanh";
-        Serial1.write('e');
+        Serial1.print('e');
       } else if (lowerTranscript.indexOf("trang") != -1) {
         Serial.println("Bật đèn trắng");
         responseText = "Đã bật đèn trắng";
-        Serial1.write('f');
+        Serial1.print('f');
       } else if (lowerTranscript.indexOf("tat") != -1) {
         Serial.println("Tắt đèn");
         responseText = "Đã tắt đèn";
-        Serial1.write('b');
+        Serial1.print('b');
       } else if (lowerTranscript.indexOf("bay gio") != -1 || lowerTranscript.indexOf("may gio") != -1 || lowerTranscript.indexOf("may") != -1) {
         Serial.println("Hỏi giờ");
         if (xSemaphoreTake(displaySemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
@@ -998,7 +1171,7 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
           timeToVietnameseText(now.hour(), now.minute(), now.day(), now.month(), now.year(), timeText, sizeof(timeText));
           responseText = timeText;
           xSemaphoreGive(displaySemaphore);
-          Serial1.write('m');
+          Serial1.print('m');
         }
       } else if ((lowerTranscript.indexOf("thoi") != -1 || lowerTranscript.indexOf("tiet") != -1 || lowerTranscript.indexOf("hom") != -1 || lowerTranscript.indexOf("nay") != -1) && (lowerTranscript.indexOf("du bao") == -1 && lowerTranscript.indexOf("ngay mai") == -1 && lowerTranscript.indexOf("ngay kia") == -1 && lowerTranscript.indexOf("ba ngay") == -1)) {
         Serial.println("Hỏi thời tiết");
@@ -1019,9 +1192,9 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
           snprintf(weatherTTS, sizeof(weatherTTS), "Hà Nội, %d độ C, %s", (int)temp, desc.c_str());
           responseText = weatherTTS;
           xSemaphoreGive(weatherSemaphore);
-          Serial1.write('n');
+          Serial1.print('n');
         }
-      } else if (lowerTranscript.indexOf("bao thuc") != -1 || lowerTranscript.indexOf("thuc") != -1 || lowerTranscript.indexOf("luc") != -1) {
+      } else if ((lowerTranscript.indexOf("bao thuc") != -1 || lowerTranscript.indexOf("thuc") != -1 || lowerTranscript.indexOf("luc") != -1) && (lowerTranscript.indexOf("huy") == -1 && lowerTranscript.indexOf("tat") == -1)) {
         Serial.println("Báo thức");
         int hour, minute;
         if (extractAlarmTime(transcript, hour, minute)) {
@@ -1029,16 +1202,16 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
             alarmEnabled = true;
             alarmHour = hour;
             alarmMinute = minute;
-            currentCommand = "Đã đặt báo thức vào lúc " + String(hour) + ":" + (minute < 10 ? "0" : "") + String(minute);
+            currentCommand = "Đã đặt báo thức vào lúc " + String(hour) + ":" + (minute < 10 ? "0" : "") + String(minute) + " phút";
             responseText = currentCommand;
             Serial.printf("Đã đặt báo thức: %d:%02d\n", hour, minute);
             xSemaphoreGive(displaySemaphore);
-            Serial1.write('p');
+            Serial1.print('p');
           }
         } else {
           responseText = "Không rõ thời gian báo thức, vui lòng thử lại";
         }
-      } else if (lowerTranscript.indexOf("hen") != -1 || lowerTranscript.indexOf("phut") != -1) {
+      } else if ((lowerTranscript.indexOf("hen") != -1 || lowerTranscript.indexOf("phut") != -1) && (lowerTranscript.indexOf("huy") == -1 && lowerTranscript.indexOf("tat") == -1 && lowerTranscript.indexOf("lich") == -1)) {
         Serial.println("Hẹn giờ");
         int hour, minute;
         if (lowerTranscript.indexOf("nam phut") != -1) {
@@ -1050,7 +1223,7 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
             responseText = currentCommand;
             Serial.println("Đã đặt hẹn giờ: 5 phút");
             xSemaphoreGive(displaySemaphore);
-            Serial1.write('o');
+            Serial1.print('o');
           }
         } else if (extractTimerTime(transcript, hour, minute)) {
           if (minute > 0) {
@@ -1063,7 +1236,7 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
               responseText = currentCommand;
               Serial.printf("Đã đặt hẹn giờ: %d phút\n", minute);
               xSemaphoreGive(displaySemaphore);
-              Serial1.write('o');
+              Serial1.print('o');
             }
           } else {
             responseText = "Vui lòng cung cấp thời gian hẹn giờ hợp lệ";
@@ -1073,7 +1246,6 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
         }
       } else if (lowerTranscript.indexOf("du bao") != -1) {
         Serial.println("Hỏi dự báo thời tiết");
-        // Lấy thời gian hiện tại để tính ngày
         DateTime now = rtc.now();
         DateTime tomorrow = DateTime(now.unixtime() + 86400);
         DateTime dayAfterTomorrow = DateTime(now.unixtime() + 2 * 86400);
@@ -1084,13 +1256,13 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
           if (xSemaphoreTake(forecastSemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
             if (forecastData[0].timestamp > 0) {
               String desc = translateWeatherDesc(forecastData[0].desc);
-              char forecastTTS[256];
+              char forecastTTS[150];
               snprintf(forecastTTS, sizeof(forecastTTS),
                        "Dự báo ngày mai, %d tháng %d, Hà Nội, %d độ C, %s, xác suất mưa %d phần trăm",
                        tomorrow.day(), tomorrow.month(),
                        (int)forecastData[0].temp, desc.c_str(), (int)(forecastData[0].pop * 100));
               responseText = forecastTTS;
-              Serial1.write('n');
+              Serial1.print('n');
             } else {
               responseText = "Không có dữ liệu dự báo ngày mai, vui lòng thử lại sau";
             }
@@ -1101,13 +1273,13 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
           if (xSemaphoreTake(forecastSemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
             if (forecastData[1].timestamp > 0) {
               String desc = translateWeatherDesc(forecastData[1].desc);
-              char forecastTTS[256];
+              char forecastTTS[150];
               snprintf(forecastTTS, sizeof(forecastTTS),
                        "Dự báo ngày kia, %d tháng %d, Hà Nội, %d độ C, %s, xác suất mưa %d phần trăm",
                        dayAfterTomorrow.day(), dayAfterTomorrow.month(),
                        (int)forecastData[1].temp, desc.c_str(), (int)(forecastData[1].pop * 100));
               responseText = forecastTTS;
-              Serial1.write('n');
+              Serial1.print('n');
             } else {
               responseText = "Không có dữ liệu dự báo ngày kia, vui lòng thử lại sau";
             }
@@ -1118,13 +1290,13 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
           if (xSemaphoreTake(forecastSemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
             if (forecastData[2].timestamp > 0) {
               String desc = translateWeatherDesc(forecastData[2].desc);
-              char forecastTTS[256];
+              char forecastTTS[150];
               snprintf(forecastTTS, sizeof(forecastTTS),
                        "Dự báo ngày %d tháng %d, Hà Nội, %d độ C, %s, xác suất mưa %d phần trăm",
                        thirdDay.day(), thirdDay.month(),
                        (int)forecastData[2].temp, desc.c_str(), (int)(forecastData[2].pop * 100));
               responseText = forecastTTS;
-              Serial1.write('n');
+              Serial1.print('n');
             } else {
               responseText = "Không có dữ liệu dự báo ngày thứ 3, vui lòng thử lại sau";
             }
@@ -1133,73 +1305,220 @@ void sendToViettelAPI(uint8_t* pcmData, size_t pcmSize) {
         } else {
           responseText = "Vui lòng chỉ định ngày dự báo (ngày mai, ngày kia, hoặc ba ngày)";
         }
+      } else if ((lowerTranscript.indexOf("ngay") != -1 || lowerTranscript.indexOf("lich") != -1) && (lowerTranscript.indexOf("huy") == -1 && lowerTranscript.indexOf("tat") == -1 && lowerTranscript.indexOf("kiem") == -1 && lowerTranscript.indexOf("tra") == -1)) {
+        Serial.println("Hẹn lịch");
+        int day, month;
+        if (extractAppointmentDate(transcript, day, month)) {
+          if (xSemaphoreTake(appointmentSemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
+            DateTime now = rtc.now();
+            int year = now.year();
+            if (month < now.month()) year++;
+            DateTime apptDate(year, month, day, 6, 0, 0);  // Đặt mặc định 6h
+            appointment.dateUnix = apptDate.unixtime();
+            appointment.active = true;
+            appointment.message[0] = '\0';  // Reset message
+            xSemaphoreGive(appointmentSemaphore);
+            responseText = "Đã đặt lịch ngày " + String(day) + " tháng " + String(month) + ". Vui lòng nói lời hẹn.";
+            Serial.printf("Đã đặt lịch: %d/%d/%d 06:00\n", day, month, year);
+            isAppointmentRecording = true;  // Chuyển sang ghi âm lời hẹn
+            Serial1.print('q');
+          }
+        } else {
+          responseText = "Không rõ ngày hẹn, vui lòng thử lại";
+        }
+      } else if (lowerTranscript.indexOf("huy hen lich") != -1 || lowerTranscript.indexOf("tat lich") != -1 || lowerTranscript.indexOf("huy lich") != -1) {
+        Serial.println("Hủy lịch");
+        if (xSemaphoreTake(appointmentSemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
+          if (appointment.active) {
+            appointment.dateUnix = 0;
+            appointment.message[0] = '\0';
+            appointment.active = false;
+            responseText = "Đã hủy lịch hẹn.";
+            Serial.println("Đã hủy lịch hẹn");
+            Serial1.print('q');
+          } else {
+            responseText = "Không có lịch hẹn để hủy.";
+            Serial.println("Không có lịch hẹn để hủy");
+          }
+          xSemaphoreGive(appointmentSemaphore);
+        } else {
+          responseText = "Lỗi khi hủy lịch, vui lòng thử lại";
+        }
+      } else if (lowerTranscript.indexOf("huy bao thuc") != -1 || lowerTranscript.indexOf("tat bao thuc") != -1) {
+        Serial.println("Hủy báo thức");
+        if (xSemaphoreTake(displaySemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
+          if (alarmEnabled) {
+            alarmEnabled = false;
+            alarmHour = -1;
+            alarmMinute = 0;
+            responseText = "Đã hủy báo thức.";
+            Serial.println("Đã hủy báo thức");
+            Serial1.print('p');
+          } else {
+            responseText = "Không có báo thức để hủy.";
+            Serial.println("Không có báo thức để hủy");
+          }
+          xSemaphoreGive(displaySemaphore);
+        } else {
+          responseText = "Lỗi khi hủy báo thức, vui lòng thử lại";
+        }
+      } else if (lowerTranscript.indexOf("huy hen gio") != -1 || lowerTranscript.indexOf("tat hen gio") != -1) {
+        Serial.println("Hủy hẹn giờ");
+        if (xSemaphoreTake(displaySemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
+          if (timerEnabled || timer5MinEnabled || timer2MinEnabled) {
+            timerEnabled = false;
+            timer5MinEnabled = false;
+            timer2MinEnabled = false;
+            timerEndTime = 0;
+            timer5MinEnd = 0;
+            timer2MinEnd = 0;
+            responseText = "Đã hủy hẹn giờ.";
+            Serial.println("Đã hủy hẹn giờ");
+            Serial1.print('o');
+          } else {
+            responseText = "Không có hẹn giờ để hủy.";
+            Serial.println("Không có hẹn giờ để hủy");
+          }
+          xSemaphoreGive(displaySemaphore);
+        } else {
+          responseText = "Lỗi khi hủy hẹn giờ, vui lòng thử lại";
+        }
+      } else if (lowerTranscript.indexOf("kiem") != -1 || lowerTranscript.indexOf("tra") != -1) {
+        Serial.println("Kiểm tra lịch");
+        if (xSemaphoreTake(appointmentSemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
+          if (appointment.active && appointment.dateUnix > 0 && appointment.message[0] != '\0') {
+            DateTime apptTime(appointment.dateUnix);
+            char ttsText[128];
+            snprintf(ttsText, sizeof(ttsText),
+                     "Ngày %d tháng %d, lời nhắc: %s",
+                     apptTime.day(), apptTime.month(), appointment.message);
+            responseText = ttsText;
+            Serial.println("Kiểm tra lịch: " + String(ttsText));
+            Serial1.print('q');
+          } else {
+            responseText = "Không có lịch hẹn.";
+            Serial.println("Không có lịch hẹn");
+          }
+          xSemaphoreGive(appointmentSemaphore);
+        } else {
+          responseText = "Lỗi khi kiểm tra lịch, vui lòng thử lại";
+        }
       } else {
         responseText = "Không hiểu lệnh, vui lòng thử lại";
       }
     }
   } else {
     Serial.println("Lỗi HTTP: " + http.errorToString(httpResponseCode));
-    Serial1.write('c');
+    // Serial1.print('c');
     responseText = "Lỗi, vui lòng thử lại";
+  }
+  http.end();
+  // Xử lý ghi âm lời hẹn nếu cần
+  if (isAppointmentRecording && WiFi.status() == WL_CONNECTED) {
+    playTTS(responseText.c_str(), "vi");
+    vTaskDelay(pdMS_TO_TICKS(450));  // Chờ TTS hoàn tất
+    Serial.println("Bắt đầu ghi âm lời hẹn...");
+    uint8_t* apptPcmData = NULL;
+    size_t apptPcmSize = 0;
+    if (recordAudio_new_driver(&apptPcmData, &apptPcmSize)) {
+      if (apptPcmSize > 0 && apptPcmData != NULL) {
+        size_t apptWavSize = 44 + apptPcmSize;
+        uint8_t* apptWavData = (uint8_t*)heap_caps_malloc(apptWavSize, MALLOC_CAP_8BIT);
+        if (apptWavData) {
+          uint8_t wavHeader[44];
+          createWavHeader(wavHeader, apptPcmSize);
+          memcpy(apptWavData, wavHeader, 44);
+          memcpy(apptWavData + 44, apptPcmData, apptPcmSize);
+          heap_caps_free(apptPcmData);
+
+          String part1 = String("--") + boundary + "\r\n" + "Content-Disposition: form-data; name=\"file\"; filename=\"appointment.wav\"\r\n" + "Content-Type: audio/wav\r\n\r\n";
+          String part2 = "\r\n--" + String(boundary) + "--\r\n";
+          size_t part1Len = part1.length();
+          size_t part2Len = part2.length();
+          size_t payloadSize = part1Len + apptWavSize + part2Len;
+
+          uint8_t* payload = (uint8_t*)heap_caps_malloc(payloadSize, MALLOC_CAP_8BIT);
+          if (payload) {
+            memcpy(payload, part1.c_str(), part1Len);
+            memcpy(payload + part1Len, apptWavData, apptWavSize);
+            memcpy(payload + part1Len + apptWavSize, part2.c_str(), part2Len);
+            heap_caps_free(apptWavData);
+
+            HTTPClient http;
+            http.setTimeout(15000);
+            http.begin(viettel_api);
+            http.addHeader("Content-Type", "multipart/form-data; boundary=" + String(boundary));
+            http.addHeader("Authorization", "Bearer " + String(viettel_token));
+
+            int httpResponseCode = http.POST(payload, payloadSize);
+            heap_caps_free(payload);
+
+            if (httpResponseCode > 0) {
+              String response = http.getString();
+              String apptTranscript = parseTranscript(response);
+              if (apptTranscript != "") {
+                // Loại bỏ dấu chấm và khoảng trắng thừa trong lời hẹn
+                apptTranscript.trim();
+                apptTranscript.replace(".", "");
+                if (xSemaphoreTake(appointmentSemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
+                  strncpy(appointment.message, apptTranscript.c_str(), sizeof(appointment.message) - 1);
+                  appointment.message[sizeof(appointment.message) - 1] = '\0';
+                  DateTime apptTime(appointment.dateUnix);
+                  char ttsText[128];
+                  snprintf(ttsText, sizeof(ttsText),
+                           "Đã đặt lịch ngày %d tháng %d, lời nhắc: %s",
+                           apptTime.day(), apptTime.month(), appointment.message);
+                  responseText = ttsText;
+                  Serial.println("Lưu lời hẹn: " + String(appointment.message));
+                  Serial.println("TTS: " + String(ttsText));
+                  xSemaphoreGive(appointmentSemaphore);
+                } else {
+                  responseText = "Lỗi lưu lời hẹn, vui lòng thử lại";
+                }
+              } else {
+                responseText = "Không nhận diện được lời hẹn, vui lòng thử lại";
+              }
+            } else {
+              responseText = "Lỗi gửi lời hẹn, vui lòng thử lại";
+            }
+            http.end();
+          } else {
+            heap_caps_free(apptWavData);
+            responseText = "Lỗi bộ nhớ khi gửi lời hẹn";
+          }
+        } else {
+          heap_caps_free(apptPcmData);
+          responseText = "Lỗi bộ nhớ khi xử lý lời hẹn";
+        }
+      } else {
+        heap_caps_free(apptPcmData);
+        responseText = "Lỗi: Dữ liệu âm thanh lời hẹn không hợp lệ";
+      }
+    } else {
+      responseText = "Lỗi ghi âm lời hẹn, vui lòng thử lại";
+    }
   }
 
   if (WiFi.status() == WL_CONNECTED && responseText != "") {
     Serial.println("Chuẩn bị phát TTS: " + responseText);
     playTTS(responseText.c_str(), "vi");
-  } else {
+  } else if (responseText != "") {
     Serial.println("Không phát TTS: WiFi ngắt hoặc responseText rỗng");
   }
-
-  http.end();
 }
 
-void fetchWeather() {
-  HTTPClient http;
-  http.begin(weather_api);
-  int httpResponseCode = http.GET();
-
-  if (httpResponseCode == 200) {
-    String payload = http.getString();
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, payload);
-
-    float temp = doc["main"]["temp"];
-    String desc = doc["weather"][0]["description"];
-    String weatherStr = String("Hanoi: ") + String(temp, 1) + "C, " + desc;
-
-    if (xSemaphoreTake(weatherSemaphore, portMAX_DELAY) == pdTRUE) {
-      weatherInfo = weatherStr;
-      xSemaphoreGive(weatherSemaphore);
-    }
-  } else {
-    if (xSemaphoreTake(weatherSemaphore, portMAX_DELAY) == pdTRUE) {
-      weatherInfo = "Weather: Error";
-      xSemaphoreGive(weatherSemaphore);
-    }
-  }
-  http.end();
-}
-
-void connectWiFi() {
-  WiFi.begin(ssid, password);
-  int timeout = 10;
-  while (WiFi.status() != WL_CONNECTED && timeout > 0) {
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    timeout--;
-  }
-}
 void wifiTask(void* pvParameters) {
   connectWiFi();
   fetchWeather();
-  fetchForecast();  // Thêm gọi fetchForecast
+  fetchForecast();
   syncTimeFromAPI();
 
   unsigned long lastWeatherUpdate = 0;
-  unsigned long lastForecastUpdate = 0;  // Biến cho dự báo
+  unsigned long lastForecastUpdate = 0;
   unsigned long lastTimeSync = 0;
-  const unsigned long weatherInterval = 600000;      // 10 phút
-  const unsigned long forecastInterval = 3600000;    // 1 giờ cho dự báo
-  const unsigned long timeSyncInterval = 604800000;  // 7 ngày
+  const unsigned long weatherInterval = 600000;
+  const unsigned long forecastInterval = 3600000;
+  const unsigned long timeSyncInterval = 604800000;
 
   isOnline = (WiFi.status() == WL_CONNECTED);
   lastWiFiState = isOnline;
@@ -1217,7 +1536,7 @@ void wifiTask(void* pvParameters) {
           if (xSemaphoreTake(displaySemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
             displayMode2 = false;
             fetchWeather();
-            fetchForecast();  // Cập nhật dự báo khi kết nối lại
+            fetchForecast();
             xSemaphoreGive(displaySemaphore);
           }
           syncTimeFromAPI();
@@ -1227,7 +1546,6 @@ void wifiTask(void* pvParameters) {
       }
     }
 
-    // Cập nhật thời tiết và dự báo
     if (wifiConnected && millis() - lastWeatherUpdate >= weatherInterval) {
       fetchWeather();
       lastWeatherUpdate = millis();
@@ -1285,146 +1603,10 @@ void wifiTask(void* pvParameters) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
-void SendDataMax7219(int HighByte, int LowByte) {
-  // Gửi High Byte (địa chỉ)
-  for (int i = 7; i >= 0; i--) {
-    digitalWrite(DataOUT, bitRead(HighByte, i));
-    delayMicroseconds(10);
-    digitalWrite(CLK, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(CLK, LOW);
-    delayMicroseconds(10);
-  }
-
-  // Gửi Low Byte (dữ liệu)
-  for (int i = 7; i >= 0; i--) {
-    digitalWrite(DataOUT, bitRead(LowByte, i));
-    delayMicroseconds(10);
-    digitalWrite(CLK, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(CLK, LOW);
-    delayMicroseconds(10);
-  }
-
-  // Load dữ liệu
-  digitalWrite(Load, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(Load, LOW);
-  delayMicroseconds(10);
-}
-
-void ShowDigits7SegmentLED(int d3, int d2, int d1, int d0) {
-  SendDataMax7219(0x01, digits_seg0[d3]);
-  SendDataMax7219(0x02, digits_seg1[d2]);
-  SendDataMax7219(0x03, digits_seg2[d1]);
-  SendDataMax7219(0x04, digits_seg3[d0]);
-}
-
-void buzzerOn() {
-  digitalWrite(BUZZER_PIN, HIGH);
-}
-
-void buzzerOff() {
-  digitalWrite(BUZZER_PIN, LOW);
-}
-
-void triggerAlarm() {
-  for (int i = 0; i < 3; i++) {
-    buzzerOn();
-    vTaskDelay(pdMS_TO_TICKS(500));
-    buzzerOff();
-    vTaskDelay(pdMS_TO_TICKS(500));
-  }
-}
-
-bool getNTPTime(struct tm* timeinfo) {
-  if (WiFi.status() == WL_CONNECTED) {
-    configTime(7 * 3600, 0, "pool.ntp.org");
-    if (getLocalTime(timeinfo)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool syncTimeFromAPI() {
-  struct tm timeinfo;
-  if (getNTPTime(&timeinfo)) {
-    DateTime ntpTime = DateTime(
-      timeinfo.tm_year + 1900,
-      timeinfo.tm_mon + 1,
-      timeinfo.tm_mday,
-      timeinfo.tm_hour,
-      timeinfo.tm_min,
-      timeinfo.tm_sec);
-
-    // Lưu thời gian vào DS1307
-    rtc.adjust(ntpTime);
-
-    // Kiểm tra thời gian DS1307 sau khi lưu
-    DateTime now = rtc.now();
-    if (now.year() == ntpTime.year() && now.month() == ntpTime.month() && now.day() == ntpTime.day() && now.hour() == ntpTime.hour() && now.minute() == ntpTime.minute()) {
-      Serial.println("Đồng bộ thời gian từ NTP vào DS1307 thành công: " + ntpTime.timestamp());
-      return true;
-    } else {
-      Serial.println("Lỗi: Thời gian DS1307 không khớp sau khi đồng bộ! DS1307: " + now.timestamp() + ", NTP: " + ntpTime.timestamp());
-      return false;
-    }
-  }
-  Serial.println("Lỗi đồng bộ thời gian từ NTP");
-  return false;
-}
-
-void readDS1307Time(byte& hour, byte& minute, byte& second) {
-  Wire.beginTransmission(0x68);
-  Wire.write(0x00);
-  Wire.endTransmission();
-
-  Wire.requestFrom(0x68, 3);
-  second = bcdToDec(Wire.read());
-  minute = bcdToDec(Wire.read());
-  hour = bcdToDec(Wire.read() & 0x3F);
-}
-
-byte bcdToDec(byte val) {
-  return (val / 16 * 10 + val % 16);
-}
-
-WeatherIcon getWeatherIcon(const String& desc) {
-  String descLower = desc;
-  descLower.toLowerCase();
-  //Serial.print("Weather condition (lowercase): ");
-  //Serial.println(descLower);
-
-  WeatherIcon icon = { 64, "u8g2_font_open_iconic_weather_6x_t" };  // Default: Cloud
-
-  if (descLower.indexOf("clear") != -1) {
-    icon.code = 69;  // Sun
-    icon.font = "u8g2_font_open_iconic_weather_6x_t";
-  } else if (descLower.indexOf("cloud") != -1) {
-    if (descLower.indexOf("few") != -1 || descLower.indexOf("scattered") != -1) {
-      icon.code = 65;  // Sun Cloud
-      icon.font = "u8g2_font_open_iconic_weather_6x_t";
-    } else {
-      icon.code = 64;  // Cloud
-      icon.font = "u8g2_font_open_iconic_weather_6x_t";
-    }
-  } else if (descLower.indexOf("rain") != -1) {
-    icon.code = 67;  // Rain
-    icon.font = "u8g2_font_open_iconic_weather_6x_t";
-  } else if (descLower.indexOf("thunder") != -1) {
-    icon.code = 67;  // Thunder
-    icon.font = "u8g2_font_open_iconic_embedded_6x_t";
-  } else if (descLower.indexOf("snow") != -1 || descLower.indexOf("mist") != -1 || descLower.indexOf("fog") != -1 || descLower.indexOf("haze") != -1) {
-    icon.code = 64;  // Cloud
-    icon.font = "u8g2_font_open_iconic_weather_6x_t";
-  }
-  return icon;
-}
-
 void displayTask(void* pvParameters) {
   static DateTime lastTime = DateTime((uint32_t)0);
   bool alarmTriggered = false;
+  bool appointmentTriggered = false;
   String lastTemperature = "";
   String lastWeatherDesc = "";
   char lastTimeStr[9] = "";
@@ -1447,23 +1629,19 @@ void displayTask(void* pvParameters) {
   SendDataMax7219(0x02, 0x00);  // Xóa LED 1
   SendDataMax7219(0x03, 0x00);  // Xóa LED 2
   SendDataMax7219(0x04, 0x00);  // Xóa LED 3
-
   for (;;) {
     DateTime now = rtc.now();
     bool wifiConnected = WiFi.isConnected();
-
     if (isOnline) {
       lastTime = now;
     } else {
       now = rtc.now();
     }
-
     String weather;
     if (xSemaphoreTake(weatherSemaphore, portMAX_DELAY) == pdTRUE) {
       weather = weatherInfo;
       xSemaphoreGive(weatherSemaphore);
     }
-
     String temperature = "--";
     String weather_desc = "--";
     int commaIndex = weather.indexOf(", ");
@@ -1481,14 +1659,12 @@ void displayTask(void* pvParameters) {
       weather_desc.replace("moderate rain", "rain");
       weather_desc.replace("heavy rain", "rain");
     }
-
     char timeStr[9];
     char secStr[4];
     sprintf(timeStr, "%02d:%02d", now.hour(), now.minute());
     sprintf(secStr, ":%02d", now.second());
     char dateStr[10];
     sprintf(dateStr, "%02d/%02d/%02d", now.day(), now.month(), now.year() % 100);
-
     const char* day = daysOfWeek[now.dayOfTheWeek()];
 
     char timerStr[16];
@@ -1510,14 +1686,20 @@ void displayTask(void* pvParameters) {
     } else {
       snprintf(timerStr, sizeof(timerStr), "Timer: Off");
     }
-
     char alarmStr[16];
     if (alarmEnabled && alarmHour >= 0) {
       snprintf(alarmStr, sizeof(alarmStr), "Alarm: %02d:%02d", alarmHour, alarmMinute);
     } else {
       snprintf(alarmStr, sizeof(alarmStr), "Alarm: Off");
     }
-
+    char apptStr[12] = "";
+    if (xSemaphoreTake(appointmentSemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
+      if (appointment.active && appointment.dateUnix > 0) {
+        DateTime apptTime(appointment.dateUnix);
+        snprintf(apptStr, sizeof(apptStr), "Day : %02d-%02d", apptTime.day(), apptTime.month());
+      }
+      xSemaphoreGive(appointmentSemaphore);
+    }
     if (alarmEnabled && now.hour() == alarmHour && now.minute() == alarmMinute && now.second() == 0) {
       if (!alarmTriggered) {
         triggerAlarm();
@@ -1537,6 +1719,32 @@ void displayTask(void* pvParameters) {
       }
     } else {
       alarmTriggered = false;
+    }
+    // Kiểm tra và phát lời hẹn vào 6:00 sáng
+    if (xSemaphoreTake(appointmentSemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
+      if (appointment.active && appointment.dateUnix > 0) {
+        DateTime apptTime(appointment.dateUnix);
+        if (now.day() == apptTime.day() && now.month() == apptTime.month() && now.hour() == 6 && now.minute() == 0 && now.second() == 0 && !appointmentTriggered) {
+          appointmentTriggered = true;
+          if (appointment.message[0] != '\0' && WiFi.status() == WL_CONNECTED) {
+            Serial.println("Phát lại lời hẹn: " + String(appointment.message));
+            playTTS(appointment.message, "vi");
+            // Xóa lịch sau khi phát
+            appointment.dateUnix = 0;
+            appointment.message[0] = '\0';
+            appointment.active = false;
+            if (xSemaphoreTake(displaySemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
+              currentCommand = "Lịch hẹn đã kích hoạt";
+              xSemaphoreGive(displaySemaphore);
+            }
+          }
+        }
+        // Reset trigger sau 6:01 cùng ngày
+        if (now.hour() >= 6 && now.minute() >= 1 && now.day() == apptTime.day() && now.month() == apptTime.month()) {
+          appointmentTriggered = false;
+        }
+      }
+      xSemaphoreGive(appointmentSemaphore);
     }
 
     if (timerEnabled && now.unixtime() >= timerEndTime) {
@@ -1577,7 +1785,6 @@ void displayTask(void* pvParameters) {
 
     int mode = (timerEnabled || timer5MinEnabled || timer2MinEnabled || displayMode2) ? 2 : 1;
 
-    // Sửa lỗi DAO thành 0
     if (strcmp(timeStr, lastTimeStr) != 0 || strcmp(secStr, lastSecStr) != 0 || strcmp(dateStr, lastDateStr) != 0 || strcmp(timerStr, lastTimerStr) != 0 || strcmp(alarmStr, lastAlarmStr) != 0 || temperature != lastTemperature || weather_desc != lastWeatherDesc || mode != lastMode) {
       u8g2.clearBuffer();
       u8g2.drawFrame(0, 0, 128, 64);
@@ -1594,6 +1801,11 @@ void displayTask(void* pvParameters) {
         u8g2.drawStr(5, 37, timeStr);
         u8g2.setFont(u8g2_font_5x7_tr);
         u8g2.drawStr(55, 37, secStr);
+      }
+
+      if (apptStr[0] != '\0') {
+        u8g2.setFont(u8g2_font_5x7_tr);
+        u8g2.drawStr(5, 44, apptStr);
       }
 
       u8g2.setFont(u8g2_font_5x7_tr);
@@ -1622,7 +1834,6 @@ void displayTask(void* pvParameters) {
       lastMode = mode;
     }
 
-    // Cập nhật LED 7 đoạn
     if (timerEnabled && now.unixtime() < timerEndTime) {
       int secondsLeft = timerEndTime - now.unixtime();
       if (secondsLeft < 0) secondsLeft = 0;
@@ -1670,30 +1881,28 @@ void uartTask(void* pvParameters) {
       char receivedChar = Serial1.read();
       Serial.printf("Nhận ký tự UART: %c\n", receivedChar);
       if (isOnline) {
-        // Online mode: Handle 'a' for voice trigger with buzzer
         switch (receivedChar) {
           case 'a':
-            digitalWrite(BUZZER_PIN, HIGH);   // Bật buzzer
-            delay(200);                       // Kêu 200ms
-            digitalWrite(BUZZER_PIN, LOW);    // Tắt buzzer
-            xTaskNotifyGive(wifiTaskHandle);  // Trigger voice recording
+            digitalWrite(BUZZER_PIN, HIGH);
+            delay(200);
+            digitalWrite(BUZZER_PIN, LOW);
+            xTaskNotifyGive(wifiTaskHandle);
             Serial.println("Online: Nhận 'a', buzzer kêu 200ms, kích hoạt ghi âm");
             break;
           default:
             break;
         }
       } else {
-        // Offline mode: Handle UART commands
         switch (receivedChar) {
           case 'a':
-            digitalWrite(BUZZER_PIN, LOW);    // Tắt buzzer
-            xTaskNotifyGive(wifiTaskHandle);  // Trigger voice recording attempt
+            digitalWrite(BUZZER_PIN, LOW);
+            xTaskNotifyGive(wifiTaskHandle);
             Serial.println("Offline: Nhận 'a', buzzer tắt");
             break;
           case 'g':
             if (xSemaphoreTake(displaySemaphore, pdMS_TO_TICKS(1000)) == pdTRUE) {
               DateTime now = rtc.now();
-              displayMode2 = true;  // Switch to mode 2
+              displayMode2 = true;
               Serial.println("Offline: Nhận 'g', chuyển OLED chế độ 2");
               xSemaphoreGive(displaySemaphore);
             }
@@ -1718,12 +1927,12 @@ void uartTask(void* pvParameters) {
               timer5MinEnabled = true;
               timer5MinEnd = now.unixtime() + 300;  // 5 minutes
               timer2MinEnabled = false;             // Hủy hẹn giờ 2 phút
-              displayMode2 = true;                  // Switch to mode 2
-              digitalWrite(BUZZER_PIN, HIGH);       // Bật buzzer
-              delay(200);                           // Kêu 200ms
-              digitalWrite(BUZZER_PIN, LOW);        // Tắt buzzer
+              displayMode2 = true;
+              digitalWrite(BUZZER_PIN, HIGH);
+              delay(200);
+              digitalWrite(BUZZER_PIN, LOW);
               // Reset LED 7 đoạn
-              ShowDigits7SegmentLED(0, 5, 0, 0);  // Hiển thị 05:00
+              ShowDigits7SegmentLED(0, 5, 0, 0);
               Serial.println("Offline: Nhận 'k', hẹn giờ 5 phút, hủy hẹn giờ 2 phút, buzzer kêu, reset LED 7 đoạn");
               xSemaphoreGive(displaySemaphore);
             }
@@ -1734,12 +1943,12 @@ void uartTask(void* pvParameters) {
               timer2MinEnabled = true;
               timer2MinEnd = now.unixtime() + 120;  // 2 minutes
               timer5MinEnabled = false;             // Hủy hẹn giờ 5 phút
-              displayMode2 = true;                  // Switch to mode 2
-              digitalWrite(BUZZER_PIN, HIGH);       // Bật buzzer
-              delay(200);                           // Kêu 200ms
-              digitalWrite(BUZZER_PIN, LOW);        // Tắt buzzer
+              displayMode2 = true;
+              digitalWrite(BUZZER_PIN, HIGH);
+              delay(200);
+              digitalWrite(BUZZER_PIN, LOW);
               // Reset LED 7 đoạn
-              ShowDigits7SegmentLED(0, 2, 0, 0);  // Hiển thị 02:00
+              ShowDigits7SegmentLED(0, 2, 0, 0);
               Serial.println("Offline: Nhận 'l', hẹn giờ 2 phút, hủy hẹn giờ 5 phút, buzzer kêu, reset LED 7 đoạn");
               xSemaphoreGive(displaySemaphore);
             }
@@ -1758,20 +1967,16 @@ void checkTaskStack(void* pvParameters) {
     Serial.printf("WiFiTask stack high water mark: %u bytes\n", uxTaskGetStackHighWaterMark(wifiTaskHandle));
     Serial.printf("DisplayTask stack high water mark: %u bytes\n", uxTaskGetStackHighWaterMark(displayTaskHandle));
     Serial.printf("UartTask stack high water mark: %u bytes\n", uxTaskGetStackHighWaterMark(uartTaskHandle));
-    vTaskDelay(pdMS_TO_TICKS(60000));  // Kiểm tra mỗi 60 giây
+    vTaskDelay(pdMS_TO_TICKS(60000));
   }
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.printf("Free heap tại setup: %d bytes\n", ESP.getFreeHeap());
-
   Serial1.begin(UART_BAUD_RATE, SERIAL_8N1, UART_RX_PIN, UART_TX_PIN);
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
-  leds.begin();
-  leds.clear();
-  leds.show();
 
   Wire.begin(12, 13);
   u8g2.begin();
@@ -1780,10 +1985,7 @@ void setup() {
     while (1)
       ;
   }
-
-  // Kích hoạt chế độ pin cho DS1307
   enableRTCBatteryMode();
-
   DateTime now = rtc.now();
   if (!rtc.isrunning()) {
     Serial.println("RTC không chạy, đặt thời gian: 19:03, 18/05/2025");
@@ -1794,64 +1996,59 @@ void setup() {
   } else {
     Serial.println("RTC đang chạy, sử dụng thời gian từ DS1307: " + now.timestamp());
   }
-
   audio = new Audio();
   if (audio) {
     audio->setPinout(I2S_SPK_BCLK, I2S_SPK_LRC, I2S_SPK_DOUT, I2S_NUM_1);
-    audio->setVolume(70);
+    audio->setVolume(100);
     Serial.println("Đối tượng Audio cho loa đã được khởi tạo.");
   } else {
     Serial.println("Lỗi khởi tạo đối tượng Audio cho loa!");
   }
-
   setupI2S_new_driver();
   if (!micI2SInitialized) {
     Serial.println("LỖI NGHIÊM TRỌNG: Không thể khởi tạo I2S cho micro trong setup!");
   }
-
-  // Tạo các semaphore với kiểm tra lỗi chi tiết
   forecastSemaphore = xSemaphoreCreateMutex();
   if (forecastSemaphore == NULL) {
     Serial.println("Lỗi tạo forecastSemaphore!");
     while (1)
       ;
   }
-
   weatherSemaphore = xSemaphoreCreateMutex();
   if (weatherSemaphore == NULL) {
     Serial.println("Lỗi tạo weatherSemaphore!");
     while (1)
       ;
   }
-
   commandSemaphore = xSemaphoreCreateMutex();
   if (commandSemaphore == NULL) {
     Serial.println("Lỗi tạo commandSemaphore!");
     while (1)
       ;
   }
-
   displaySemaphore = xSemaphoreCreateMutex();
   if (displaySemaphore == NULL) {
     Serial.println("Lỗi tạo displaySemaphore!");
     while (1)
       ;
   }
-
-  // Khởi tạo giá trị mặc định cho forecastData
   for (int i = 0; i < 3; i++) {
     forecastData[i].temp = 0.0;
     forecastData[i].desc = "N/A";
     forecastData[i].timestamp = 0;
-    forecastData[i].pop = 0.0;  // Khởi tạo xác suất mưa
+    forecastData[i].pop = 0.0;
   }
-
+  appointmentSemaphore = xSemaphoreCreateMutex();
+  if (appointmentSemaphore == NULL) {
+    Serial.println("Lỗi tạo appointmentSemaphore!");
+    while (1)
+      ;
+  }
   xTaskCreatePinnedToCore(wifiTask, "WiFiTask", 16384, NULL, 2, &wifiTaskHandle, 0);
   xTaskCreatePinnedToCore(displayTask, "DisplayTask", 4096, NULL, 1, &displayTaskHandle, 1);
   xTaskCreatePinnedToCore(uartTask, "UartTask", 2048, NULL, 1, &uartTaskHandle, 1);
   xTaskCreatePinnedToCore(checkTaskStack, "CheckStackTask", 2048, NULL, 1, NULL, 1);
 }
-
 void loop() {
   vTaskDelay(portMAX_DELAY);
 }
