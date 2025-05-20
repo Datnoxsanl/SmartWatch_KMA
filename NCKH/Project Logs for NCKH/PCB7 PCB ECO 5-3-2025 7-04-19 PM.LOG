@@ -1,0 +1,8 @@
+Change Component Footprint: Designator=C3 Old Footprint=Tu Hoa 12MM New Footprint=Tu Hoa 6.5MM
+Change Component Footprint: Designator=C4 Old Footprint=Tu Hoa 12MM New Footprint=Tu Hoa 6.5MM
+Change Component Footprint: Designator=C6 Old Footprint=Tu Hoa 12MM New Footprint=Tu Hoa 6.5MM
+Change Component Footprint: Designator=C1 Old Footprint=Tu Hoa 12MM New Footprint=TU HOA 8mm
+Change Component Footprint: Designator=C5 Old Footprint=Tu Hoa 12MM New Footprint=TU HOA 8mm
+Added Pin To Net: NetName=GND Pin=U2-44
+Added Room: Name=Display
+Added Room: Name=ESP32S3

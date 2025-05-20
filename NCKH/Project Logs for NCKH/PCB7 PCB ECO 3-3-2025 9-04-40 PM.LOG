@@ -1,0 +1,8 @@
+Removed Pin From Net: NetName=FB Pin=H1-1
+Removed Pin From Net: NetName=TX Pin=H1-3
+Removed Pin From Net: NetName=RX Pin=H1-4
+Added Pin To Net: NetName=TX Pin=H1-1
+Added Pin To Net: NetName=RX Pin=H1-2
+Added Pin To Net: NetName=GND Pin=H1-3
+Added Pin To Net: NetName=FB Pin=H1-4
+Added Room: Name=NCKH

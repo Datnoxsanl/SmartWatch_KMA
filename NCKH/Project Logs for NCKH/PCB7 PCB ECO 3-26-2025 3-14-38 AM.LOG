@@ -1,0 +1,112 @@
+Removed Pin From Net: NetName=+3.3 Pin=-1
+Removed Pin From Net: NetName=SCK Pin=ESP32 Wroom-5
+Removed Pin From Net: NetName=SD Pin=ESP32 Wroom-6
+Removed Pin From Net: NetName=SW Pin=ESP32 Wroom-7
+Removed Pin From Net: NetName=Din Pin=ESP32 Wroom-9
+Removed Pin From Net: NetName=Bclk Pin=ESP32 Wroom-10
+Removed Pin From Net: NetName=lrc Pin=ESP32 Wroom-11
+Removed Pin From Net: NetName=GND Pin=ESP32 Wroom-14
+Removed Pin From Net: NetName=FB Pin=ESP32 Wroom-15
+Removed Pin From Net: NetName=+3.3 Pin=ESP32 Wroom-16
+Removed Pin From Net: NetName=GND Pin=ESP32 Wroom-17
+Removed Pin From Net: NetName=ST Pin=ESP32 Wroom-18
+Removed Pin From Net: NetName=Coi Pin=ESP32 Wroom-20
+Removed Pin From Net: NetName=DS_1 Pin=ESP32 Wroom-23
+Removed Pin From Net: NetName=SH_2 Pin=ESP32 Wroom-24
+Removed Pin From Net: NetName=DS_2 Pin=ESP32 Wroom-25
+Removed Pin From Net: NetName=SDA Pin=ESP32 Wroom-26
+Removed Pin From Net: NetName=RX Pin=ESP32 Wroom-27
+Removed Pin From Net: NetName=TX Pin=ESP32 Wroom-28
+Removed Pin From Net: NetName=SCL Pin=ESP32 Wroom-29
+Removed Pin From Net: NetName=SH_1 Pin=ESP32 Wroom-30
+Removed Pin From Net: NetName=FB Pin=IMNP441-2
+Change Component Comment : Designator=LED 1 Inch Old Comment=HDSP-511Y New Comment=
+Change Component Designator: OldDesignator= NewDesignator=JP2
+Change Component Designator: OldDesignator=74HC595 NewDesignator=U2
+Change Component Designator: OldDesignator=74HC595 NewDesignator=U3
+Change Component Designator: OldDesignator=Battery 3V NewDesignator=H3
+Change Component Designator: OldDesignator=IMNP441 NewDesignator=JP3
+Change Component Designator: OldDesignator=LED 1 Inch NewDesignator=DS2
+Change Component Designator: OldDesignator=LED 1 Inch NewDesignator=DS3
+Change Component Designator: OldDesignator=LED 1 Inch NewDesignator=DS4
+Change Component Designator: OldDesignator=LED 1 Inch NewDesignator=DS5
+Change Component Designator: OldDesignator=LM2596 NewDesignator=VR1
+Change Component Designator: OldDesignator=MAX89357 NewDesignator=H2
+Change Component Designator: OldDesignator=OLED 1.3 Inch NewDesignator=DS1
+Change Component Designator: OldDesignator=Power NewDesignator=KF1
+Change Component Designator: OldDesignator=VC-02 NewDesignator=H1
+Added Component: Designator=BT1(Nut Nhan 4 Chan Cam 6x6)
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH004584"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten"; Value = "Nút Nh?n 4 Chân 6x6x5MM DIP"; VariantName = "[No Variations]"
+Added Component: Designator=JP1(JP 1x6 DT)
+Add component (AddParameter): Name = "Chung_Loai"; Value = "C?m"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ghi_Chu"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH000903"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten_Linh_Kien"; Value = "Jump Ðon Ð?c 2.54MM 1x40P Th?ng 11MM"; VariantName = "[No Variations]"
+Added Component: Designator=U1(XCVR_ESP32-S3-DEVKITC-1-N8R2)
+Add component (AddParameter): Name = "Check_prices"; Value = "https://www.snapeda.com/parts/ESP32-S3-DEVKITC-1-N8R2/Espressif+Systems/view-part/?ref=eda"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MF"; Value = "Espressif Systems"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MP"; Value = "ESP32-S3-DEVKITC-1-N8R2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package"; Value = "None"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "SnapEDA_Link"; Value = "https://www.snapeda.com/parts/ESP32-S3-DEVKITC-1-N8R2/Espressif+Systems/view-part/?ref=snap"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = ""; VariantName = "[No Variations]"
+Added Pin To Net: NetName=GND Pin=BT1-2
+Added Pin To Net: NetName=GND Pin=BT1-2
+Added Pin To Net: NetName=GND Pin=JP1-1
+Added Pin To Net: NetName=FB Pin=JP1-2
+Added Pin To Net: NetName=GND Pin=JP2-1
+Added Pin To Net: NetName=+3.3 Pin=JP3-2
+Added Pin To Net: NetName=+3.3 Pin=U1-J1_1
+Added Pin To Net: NetName=+3.3 Pin=U1-J1_2
+Added Pin To Net: NetName=SD Pin=U1-J1_4
+Added Pin To Net: NetName=SD_Loa Pin=U1-J1_5
+Added Pin To Net: NetName=lrc Pin=U1-J1_6
+Added Pin To Net: NetName=Bclk Pin=U1-J1_7
+Added Pin To Net: NetName=SH_2 Pin=U1-J1_8
+Added Pin To Net: NetName=DS_1 Pin=U1-J1_9
+Added Pin To Net: NetName=ST Pin=U1-J1_10
+Added Pin To Net: NetName=SH_1 Pin=U1-J1_11
+Added Pin To Net: NetName=Din Pin=U1-J1_12
+Added Pin To Net: NetName=SW Pin=U1-J1_13
+Added Pin To Net: NetName=DS_2 Pin=U1-J1_20
+Added Pin To Net: NetName=FB Pin=U1-J1_21
+Added Pin To Net: NetName=GND Pin=U1-J1_22
+Added Pin To Net: NetName=GND Pin=U1-J3_1
+Added Pin To Net: NetName=TX Pin=U1-J3_2
+Added Pin To Net: NetName=RX Pin=U1-J3_3
+Added Pin To Net: NetName=SCK Pin=U1-J3_5
+Added Pin To Net: NetName=SCL Pin=U1-J3_11
+Added Pin To Net: NetName=SDA Pin=U1-J3_12
+Added Pin To Net: NetName=Coi Pin=U1-J3_13
+Added Pin To Net: NetName=GND Pin=U1-J3_21
+Added Pin To Net: NetName=GND Pin=U1-J3_22
+Added Pin To Net: NetName=CS Pin=JP1-6
+Added Pin To Net: NetName=CS Pin=U1-J1_16
+Added Net: Name=CS
+Added Pin To Net: NetName=MISO Pin=JP1-3
+Added Pin To Net: NetName=MISO Pin=U1-J1_19
+Added Net: Name=MISO
+Added Pin To Net: NetName=MOSI Pin=JP1-4
+Added Pin To Net: NetName=MOSI Pin=U1-J1_17
+Added Net: Name=MOSI
+Added Pin To Net: NetName=Mute Pin=BT1-1
+Added Pin To Net: NetName=Mute Pin=BT1-1
+Added Pin To Net: NetName=Mute Pin=U1-J3_10
+Added Net: Name=Mute
+Added Pin To Net: NetName=SCK_SD Pin=JP1-5
+Added Pin To Net: NetName=SCK_SD Pin=U1-J1_18
+Added Net: Name=SCK_SD
+Added Member To Class: ClassName=NCKH Member=Component BT1 Nut Nhan 4 Chan Cam 6x6
+Added Member To Class: ClassName=NCKH Member=Component DS2
+Added Member To Class: ClassName=NCKH Member=Component DS3 HDSP-511Y
+Added Member To Class: ClassName=NCKH Member=Component DS5 HDSP-511Y
+Added Member To Class: ClassName=NCKH Member=Component H1 VC-02
+Added Member To Class: ClassName=NCKH Member=Component H2 MAX89375
+Added Member To Class: ClassName=NCKH Member=Component JP1 JP 1x6 2.54
+Added Member To Class: ClassName=NCKH Member=Component JP2 MIC INMP441
+Added Member To Class: ClassName=NCKH Member=Component U1 ESP32-S3-DEVKITC-1-N8R2
+Added Member To Class: ClassName=NCKH Member=Component U2 74HC595N,112
+Added Member To Class: ClassName=NCKH Member=Component U3 74HC595N,112
+Added Room: Name=NCKH

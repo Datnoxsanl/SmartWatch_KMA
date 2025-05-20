@@ -1,0 +1,5 @@
+Removed Pin From Net: NetName=SCL Pin=U1-J3_11
+Removed Pin From Net: NetName=SDA Pin=U1-J3_12
+Added Pin To Net: NetName=SDA Pin=U1-J3_11
+Added Pin To Net: NetName=SCL Pin=U1-J3_12
+Added Room: Name=NCKH

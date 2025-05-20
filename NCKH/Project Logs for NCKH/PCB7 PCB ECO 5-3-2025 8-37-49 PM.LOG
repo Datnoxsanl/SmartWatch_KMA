@@ -1,0 +1,7 @@
+Removed Pin From Net: NetName=CS Pin=U2-9
+Removed Pin From Net: NetName=SCK_SD Pin=U2-18
+Removed Pin From Net: NetName=MISO Pin=U2-19
+Removed Pin From Net: NetName=MOSI Pin=U2-20
+Added Pin To Net: NetName=Coi Pin=U2-20
+Added Room: Name=Display
+Added Room: Name=ESP32S3

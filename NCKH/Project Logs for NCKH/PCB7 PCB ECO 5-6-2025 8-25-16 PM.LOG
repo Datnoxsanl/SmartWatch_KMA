@@ -1,0 +1,7 @@
+Removed Pin From Net: NetName=GND Pin=JP1-1
+Removed Pin From Net: NetName=FB Pin=JP1-2
+Removed Pin From Net: NetName=+3.3 Pin=U3-J1_1
+Removed Pin From Net: NetName=+3.3 Pin=U3-J1_2
+Removed Member From Class: ClassName=ESP32S3 Member=JP1
+Added Room: Name=Display
+Added Room: Name=ESP32S3

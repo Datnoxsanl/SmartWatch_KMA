@@ -1,0 +1,4 @@
+Change Component Footprint: Designator=Y1 Old Footprint=Thach Anh 2 chan cam New Footprint=Thach Anh 2 Chan 32,768 KHz
+Change Component Description : Designator=D1 Old Description=NeoPixel Stick - 8 x WS2812 5050 RGB LED with Integrated Drivers New Description=NeoPixel Stick - 8 x WS2812 5050 RGB LED with Integrated Drivers | Adafruit Industries 1426
+Added Room: Name=Display
+Added Room: Name=ESP32S3

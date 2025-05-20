@@ -1,0 +1,54 @@
+Removed Member From Class: ClassName=ESP32S3 Member=C1
+Removed Member From Class: ClassName=ESP32S3 Member=R3
+Removed Member From Class: ClassName=ESP32S3 Member=U1
+Added Component: Designator=DS5(LCD_OLED_128X64_1.3_I2C)
+Add component (AddParameter): Name = "Check_prices"; Value = "https://www.snapeda.com/parts/OLED%20128x64%201.3%22%20I2C/UNIVERSAL-SOLDER+Electronics+Ltd/view-part/?ref=eda"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MF"; Value = "UNIVERSAL-SOLDER Electronics Ltd"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MP"; Value = "OLED 128x64 1.3&quot; I2C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package"; Value = "None"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "SnapEDA_Link"; Value = "https://www.snapeda.com/parts/OLED%20128x64%201.3%22%20I2C/UNIVERSAL-SOLDER+Electronics+Ltd/view-part/?ref=snap"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = ""; VariantName = "[No Variations]"
+Added Component: Designator=INS1(DIOM5226X240N)
+Add component (AddParameter): Name = "Availability"; Value = "Unavailable"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MF"; Value = "Diodes Inc."; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MP"; Value = "B340A-13-F"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package"; Value = "DO-214 Diodes Inc."; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Price"; Value = "None"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "SnapEDA_Link"; Value = "https://www.snapeda.com/parts/B340A-13-F/Diodes%20Inc./view-part/78704/?ref=snap"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = ""; VariantName = "[No Variations]"
+Added Component: Designator=R2(tro smd 1206)
+Add component (AddParameter): Name = "Chung_Loai"; Value = "Dán"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH005904"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten_Linh_Kien"; Value = "Tr? 1206 5% 1k"; VariantName = "[No Variations]"
+Added Component: Designator=R4(tro smd 1206)
+Add component (AddParameter): Name = "Chung_Loai"; Value = "Dán"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH005904"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten_Linh_Kien"; Value = "Tr? 1206 5% 1k"; VariantName = "[No Variations]"
+Added Pin To Net: NetName=FB Pin=DS5-1
+Added Pin To Net: NetName=GND Pin=DS5-2
+Added Pin To Net: NetName=SCL Pin=DS5-3
+Added Pin To Net: NetName=SDA Pin=DS5-4
+Added Pin To Net: NetName=GND Pin=INS1-A
+Added Pin To Net: NetName=NetINS1_C Pin=INS1-C
+Added Pin To Net: NetName=SCL Pin=R2-1
+Added Pin To Net: NetName=FB Pin=R2-2
+Added Pin To Net: NetName=Coi Pin=R4-1
+Added Pin To Net: NetName=NetQ1_3 Pin=R4-2
+Added Member To Class: ClassName=ESP32S3 Member=Component BT2 Button
+Added Member To Class: ClassName=ESP32S3 Member=Component C4 220uF
+Added Member To Class: ClassName=Display Member=Component DS5 OLED_128X64_1.3_I2C
+Added Member To Class: ClassName=ESP32S3 Member=Component INS1 IN5822
+Added Member To Class: ClassName=ESP32S3 Member=Component JP4 Pinout MIC INMP441
+Added Member To Class: ClassName=ESP32S3 Member=Component JP5 MIC INMP441
+Added Member To Class: ClassName=Display Member=Component R2 4.7k
+Added Member To Class: ClassName=ESP32S3 Member=Component R4 220
+Added Member To Class: ClassName=ESP32S3 Member=Component R5 220
+Added Member To Class: ClassName=ESP32S3 Member=Component U3 ESP32-S3-DEVKITC-1-N8R2
+Added Room: Name=Display
+Added Room: Name=ESP32S3

@@ -1,0 +1,4 @@
+Removed Pin From Net: NetName=LED Pin=U2-19
+Added Pin To Net: NetName=LED Pin=U3-J3_20
+Added Room: Name=Display
+Added Room: Name=ESP32S3

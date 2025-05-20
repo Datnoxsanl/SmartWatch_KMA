@@ -1,0 +1,4 @@
+Change Component Footprint: Designator=U1 Old Footprint=SOIC127P1032X265-24N New Footprint=DIP794W47P254L3054H457Q24
+Change Component Description : Designator=D1 Old Description=NeoPixel Stick - 8 x WS2812 5050 RGB LED with Integrated Drivers New Description=NeoPixel Stick - 8 x WS2812 5050 RGB LED with Integrated Drivers | Adafruit Industries 1426
+Added Room: Name=Display
+Added Room: Name=ESP32S3

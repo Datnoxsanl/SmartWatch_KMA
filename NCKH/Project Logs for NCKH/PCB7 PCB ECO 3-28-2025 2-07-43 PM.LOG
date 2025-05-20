@@ -1,0 +1,5 @@
+Removed Pin From Net: NetName=Mute Pin=U1-J3_10
+Removed Pin From Net: NetName=Coi Pin=U1-J3_13
+Added Pin To Net: NetName=Coi Pin=U1-J3_10
+Added Pin To Net: NetName=Mute Pin=U1-J3_13
+Added Room: Name=NCKH

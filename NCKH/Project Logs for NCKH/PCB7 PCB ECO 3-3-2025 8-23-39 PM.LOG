@@ -1,0 +1,12 @@
+Added Pin To Net: NetName=+5 Pin=C1-1
+Added Pin To Net: NetName=GND Pin=C1-2
+Added Pin To Net: NetName=GND Pin=C2-2
+Added Pin To Net: NetName=GND Pin=INS1-A
+Added Pin To Net: NetName=+5 Pin=L1-2
+Added Pin To Net: NetName=+5 Pin=VR1-4
+Change Net Name : Old Net Name=+5 New Net Name=FB
+Added Pin To Net: NetName=NetINS1_C Pin=INS1-C
+Added Pin To Net: NetName=NetINS1_C Pin=L1-1
+Added Pin To Net: NetName=NetINS1_C Pin=VR1-2
+Added Net: Name=NetINS1_C
+Added Room: Name=NCKH

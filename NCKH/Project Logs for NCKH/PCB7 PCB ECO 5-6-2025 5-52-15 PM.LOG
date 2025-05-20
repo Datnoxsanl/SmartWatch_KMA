@@ -1,0 +1,7 @@
+Removed Pin From Net: NetName=Seg1 Pin=DS1-3
+Removed Pin From Net: NetName=Seg2 Pin=DS2-3
+Added Pin To Net: NetName=Seg1 Pin=DS1-8
+Added Pin To Net: NetName=Seg2 Pin=DS2-8
+Added Member To Class: ClassName=Display Member=Component DS2 Led 7 seg
+Added Room: Name=Display
+Added Room: Name=ESP32S3

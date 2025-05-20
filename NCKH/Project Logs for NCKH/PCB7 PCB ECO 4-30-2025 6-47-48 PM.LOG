@@ -1,0 +1,214 @@
+Removed Pin From Net: NetName=FB Pin=C1-1
+Removed Pin From Net: NetName=GND Pin=C1-2
+Removed Pin From Net: NetName=FB Pin=C2-1
+Removed Pin From Net: NetName=GND Pin=C2-2
+Removed Pin From Net: NetName=GND Pin=C3-2
+Removed Pin From Net: NetName=A Pin=R3-1
+Removed Pin From Net: NetName=B Pin=R5-1
+Removed Pin From Net: NetName=C Pin=R6-1
+Removed Pin From Net: NetName=D Pin=R7-1
+Removed Pin From Net: NetName=E Pin=R8-1
+Removed Pin From Net: NetName=F Pin=R9-1
+Removed Pin From Net: NetName=G Pin=R10-1
+Removed Pin From Net: NetName=DP Pin=R11-1
+Removed Pin From Net: NetName=Seg1 Pin=U1-2
+Removed Pin From Net: NetName=GND Pin=U1-4
+Removed Pin From Net: NetName=Seg3 Pin=U1-6
+Removed Pin From Net: NetName=Seg4 Pin=U1-7
+Removed Pin From Net: NetName=GND Pin=U1-9
+Removed Pin From Net: NetName=Seg2 Pin=U1-11
+Removed Member From Class: ClassName=ESP32S3 Member=C1
+Removed Member From Class: ClassName=ESP32S3 Member=C2
+Removed Member From Class: ClassName=ESP32S3 Member=C3
+Removed Member From Class: ClassName=Display Member=R3
+Removed Member From Class: ClassName=Display Member=R5
+Removed Member From Class: ClassName=Display Member=R6
+Removed Member From Class: ClassName=Display Member=R7
+Removed Member From Class: ClassName=Display Member=R8
+Removed Member From Class: ClassName=Display Member=R9
+Removed Member From Class: ClassName=Display Member=R10
+Removed Member From Class: ClassName=Display Member=R11
+Removed Member From Class: ClassName=Display Member=U1
+Change Component Footprint: Designator=C? Old Footprint=tu hoa 5mm New Footprint=tu 1206
+Change Component Footprint: Designator=C? Old Footprint=tu hoa 5mm New Footprint=tu hoa 10mm
+Change Component Comment : Designator=C? Old Comment=22uF New Comment=102
+Change Component Comment : Designator=C? Old Comment=22uF New Comment=470uF
+Change Component Comment : Designator=L1 Old Comment=68uH New Comment=33uH
+Change Component Comment : Designator=BT1 Old Comment=Button Mute New Comment=Button
+Change Component Comment : Designator=BT2 Old Comment=Button Mute New Comment=Button
+Change component parameters: Designator = "C?" ("C?"); Footprint = "tu hoa 5mm"; UniqueID = "\JEEJMKCC" ("\JEEJMKCC")
+Change component parameters (AddParameter): Name = "Chung_Loai"; Value = "C?m"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Ma_Hang"; Value = "MH006866"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Ten_Linh_Kien"; Value = "T? Hóa 470uF 50V"; VariantName = "[No Variations]"
+Change component parameters: Designator = "C?" ("C?"); Footprint = "tu hoa 5mm"; UniqueID = "\QUAQWBTW" ("\QUAQWBTW")
+Change component parameters (AddParameter): Name = "Chung_Loai"; Value = "Dán"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Ma_Hang"; Value = "MH004542"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Ten_Linh_Kien"; Value = "T? 1206 102-1nF 10% 50V"; VariantName = "[No Variations]"
+Added Component: Designator=C?(tu hoa 13mm)
+Add component (AddParameter): Name = "Chung_Loai"; Value = "C?m"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH004801"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten_Linh_Kien"; Value = "T? Hóa 22uF 400V 13x20MM"; VariantName = "[No Variations]"
+Added Component: Designator=C?(tu hoa 13mm)
+Add component (AddParameter): Name = "Chung_Loai"; Value = "C?m"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH004801"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten_Linh_Kien"; Value = "T? Hóa 22uF 400V 13x20MM"; VariantName = "[No Variations]"
+Added Component: Designator=C?(tu hoa 13mm)
+Add component (AddParameter): Name = "Chung_Loai"; Value = "C?m"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH004801"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten_Linh_Kien"; Value = "T? Hóa 22uF 400V 13x20MM"; VariantName = "[No Variations]"
+Added Component: Designator=C?(tu hoa 13mm)
+Add component (AddParameter): Name = "Chung_Loai"; Value = "C?m"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH004801"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten_Linh_Kien"; Value = "T? Hóa 22uF 400V 13x20MM"; VariantName = "[No Variations]"
+Added Component: Designator=D?(LED_1426)
+Add component (AddParameter): Name = "Check_prices"; Value = "https://www.snapeda.com/parts/1426/Adafruit+Industries/view-part/?ref=eda"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MF"; Value = "Adafruit"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MP"; Value = "1426"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package"; Value = "None"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "SnapEDA_Link"; Value = "https://www.snapeda.com/parts/1426/Adafruit+Industries/view-part/?ref=snap"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = ""; VariantName = "[No Variations]"
+Added Component: Designator=R?(tro smd 1206)
+Add component (AddParameter): Name = "Chung_Loai"; Value = "Dán"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH005904"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten_Linh_Kien"; Value = "Tr? 1206 5% 1k"; VariantName = "[No Variations]"
+Added Component: Designator=R?(tro smd 1206)
+Add component (AddParameter): Name = "Chung_Loai"; Value = "Dán"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Don_Vi"; Value = "Con"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Kieu_Chan"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ma_Hang"; Value = "MH005904"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "So_Chan"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ten_Linh_Kien"; Value = "Tr? 1206 5% 1k"; VariantName = "[No Variations]"
+Added Component: Designator=U?(WeAct-ESP32-S3-A)
+Add component (AddParameter): Name = "Add into BOM"; Value = "yes"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Convert to PCB"; Value = "yes"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Device"; Value = "WeAct-ESP32-S3-A"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Name"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Symbol"; Value = "WeAct-ESP32-S3-A"; VariantName = "[No Variations]"
+Added Component: Designator=U?(XCVR_ESP32-S3-DEVKITC-1-N8R2)
+Add component (AddParameter): Name = "Check_prices"; Value = "https://www.snapeda.com/parts/ESP32-S3-DEVKITC-1-N8R2/Espressif+Systems/view-part/?ref=eda"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MF"; Value = "Espressif Systems"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MP"; Value = "ESP32-S3-DEVKITC-1-N8R2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package"; Value = "None"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "SnapEDA_Link"; Value = "https://www.snapeda.com/parts/ESP32-S3-DEVKITC-1-N8R2/Espressif+Systems/view-part/?ref=snap"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = ""; VariantName = "[No Variations]"
+Added Component: Designator=U?(SOIC127P1032X265-24N)
+Add component (AddParameter): Name = "Check_prices"; Value = "https://www.snapeda.com/parts/MAX7219EWG+/Analog+Devices/view-part/?ref=eda"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MF"; Value = "Analog Devices"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MP"; Value = "MAX7219EWG+"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package"; Value = "SOIC-24 Maxim"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "SnapEDA_Link"; Value = "https://www.snapeda.com/parts/MAX7219EWG+/Analog+Devices/view-part/?ref=snap"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = ""; VariantName = "[No Variations]"
+Added Pin To Net: NetName=FB Pin=C?-1
+Added Pin To Net: NetName=FB Pin=C?-1
+Added Pin To Net: NetName=FB Pin=C?-1
+Added Pin To Net: NetName=FB Pin=C?-1
+Added Pin To Net: NetName=FB Pin=C?-1
+Added Pin To Net: NetName=GND Pin=C?-2
+Added Pin To Net: NetName=GND Pin=C?-2
+Added Pin To Net: NetName=GND Pin=C?-2
+Added Pin To Net: NetName=GND Pin=C?-2
+Added Pin To Net: NetName=GND Pin=C?-2
+Added Pin To Net: NetName=GND Pin=C?-2
+Added Pin To Net: NetName=GND Pin=D?-1
+Added Pin To Net: NetName=FB Pin=D?-3
+Added Pin To Net: NetName=GND Pin=D?-4
+Added Pin To Net: NetName=GND Pin=D?-5
+Added Pin To Net: NetName=FB Pin=D?-6
+Added Pin To Net: NetName=GND Pin=D?-8
+Added Pin To Net: NetName=FB Pin=R?-2
+Added Pin To Net: NetName=+3.3 Pin=U?-1
+Added Pin To Net: NetName=+3.3 Pin=U?-2
+Added Pin To Net: NetName=Seg1 Pin=U?-2
+Added Pin To Net: NetName=GND Pin=U?-4
+Added Pin To Net: NetName=lrc Pin=U?-4
+Added Pin To Net: NetName=Bclk Pin=U?-5
+Added Pin To Net: NetName=Seg3 Pin=U?-6
+Added Pin To Net: NetName=Seg4 Pin=U?-7
+Added Pin To Net: NetName=Din Pin=U?-8
+Added Pin To Net: NetName=CS Pin=U?-9
+Added Pin To Net: NetName=GND Pin=U?-9
+Added Pin To Net: NetName=TX Pin=U?-10
+Added Pin To Net: NetName=RX Pin=U?-11
+Added Pin To Net: NetName=Seg2 Pin=U?-11
+Added Pin To Net: NetName=A Pin=U?-14
+Added Pin To Net: NetName=G Pin=U?-15
+Added Pin To Net: NetName=B Pin=U?-16
+Added Pin To Net: NetName=DP Pin=U?-17
+Added Pin To Net: NetName=SCK_SD Pin=U?-18
+Added Pin To Net: NetName=FB Pin=U?-19
+Added Pin To Net: NetName=MISO Pin=U?-19
+Added Pin To Net: NetName=C Pin=U?-20
+Added Pin To Net: NetName=MOSI Pin=U?-20
+Added Pin To Net: NetName=FB Pin=U?-21
+Added Pin To Net: NetName=F Pin=U?-21
+Added Pin To Net: NetName=E Pin=U?-22
+Added Pin To Net: NetName=GND Pin=U?-22
+Added Pin To Net: NetName=D Pin=U?-23
+Added Pin To Net: NetName=SCL Pin=U?-33
+Added Pin To Net: NetName=SDA Pin=U?-34
+Added Pin To Net: NetName=SD Pin=U?-37
+Added Pin To Net: NetName=SW Pin=U?-38
+Added Pin To Net: NetName=SCK Pin=U?-39
+Added Pin To Net: NetName=Button_1 Pin=BT2-1
+Added Pin To Net: NetName=Button_1 Pin=BT2-1
+Added Pin To Net: NetName=Button_1 Pin=U?-32
+Added Net: Name=Button_1
+Added Pin To Net: NetName=Button_2 Pin=BT1-1
+Added Pin To Net: NetName=Button_2 Pin=BT1-1
+Added Pin To Net: NetName=Button_2 Pin=U?-25
+Added Net: Name=Button_2
+Added Pin To Net: NetName=CLK Pin=U?-13
+Added Pin To Net: NetName=CLK Pin=U?-28
+Added Net: Name=CLK
+Added Pin To Net: NetName=DIN_LED Pin=U?-1
+Added Pin To Net: NetName=DIN_LED Pin=U?-27
+Added Net: Name=DIN_LED
+Added Pin To Net: NetName=LED Pin=R?-1
+Added Net: Name=LED
+Added Pin To Net: NetName=LOAD Pin=U?-12
+Added Pin To Net: NetName=LOAD Pin=U?-26
+Added Net: Name=LOAD
+Added Pin To Net: NetName=NetC?_1 Pin=C?-1
+Added Pin To Net: NetName=NetC?_1 Pin=KF1-1
+Added Pin To Net: NetName=NetC?_1 Pin=VR1-1
+Added Net: Name=NetC?_1
+Added Pin To Net: NetName=NetD?_2 Pin=D?-2
+Added Pin To Net: NetName=NetD?_2 Pin=R?-2
+Added Net: Name=NetD?_2
+Added Pin To Net: NetName=NetR?_1 Pin=R?-1
+Added Pin To Net: NetName=NetR?_1 Pin=U?-18
+Added Net: Name=NetR?_1
+Added Member To Class: ClassName=Display Member=Component C? 102
+Added Member To Class: ClassName=ESP32S3 Member=Component C? 220uF
+Added Member To Class: ClassName=ESP32S3 Member=Component C? 220uF
+Added Member To Class: ClassName=ESP32S3 Member=Component C? 220uF
+Added Member To Class: ClassName=ESP32S3 Member=Component C? 680uF
+Added Member To Class: ClassName=ESP32S3 Member=Component D? 1426
+Added Member To Class: ClassName=Display Member=Component R? 47k
+Added Member To Class: ClassName=ESP32S3 Member=Component R? 220
+Added Member To Class: ClassName=Display Member=Component U? MAX7219EWG
+Added Member To Class: ClassName=ESP32S3 Member=Component U? WeAct-ESP32-S3-A
+Added Member To Class: ClassName=ESP32S3 Member=Component U? ESP32-S3-DEVKITC-1-N8R2
+Added Room: Name=Display
+Added Room: Name=ESP32S3
